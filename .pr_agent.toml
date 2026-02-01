@@ -21,7 +21,7 @@ Just summarize the changes in Korean.
 """
 
 
-[config]
+#[config]
 # Qodo 무료 모델 사용
-model = "gpt-4o-mini"
-ignore_pr_without_changes = true
+#model = "gpt-4o-mini"
+#ignore_pr_without_changes = true
