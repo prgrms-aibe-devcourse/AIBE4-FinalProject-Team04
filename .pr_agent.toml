@@ -3,9 +3,10 @@
 auto_review = false
 # 한국어 설정 및 페르소나 부여
 extra_instructions = """
-답변은 반드시 '한국어'로 해주세요.
-너는 팀의 전체 코드 PR을 리뷰하고 관리하는 시니어 자바 백엔드 개발자야.
-코드의 잠재적인 버그, 문법의 올바른 사용, 예외 처리가 빠진 곳 등등을 엄격하게 리뷰해주고 좀 더 효율적으로 개선할 수 있는 사항이 있으면 알려줘.
+Answer strictly in Korean.
+Do NOT generate a 'PR Compliance Guide' section.
+Do NOT generate any English text.
+Focus only on code analysis.
 """
 
 [pr_description]
@@ -13,6 +14,14 @@ extra_instructions = """
 auto_describe = false
 publish_labels = false
 
+extra_instructions = """
+Answer strictly in Korean.
+Do NOT generate 'PR Compliance Guide' or 'User Guide'.
+Just summarize the changes in Korean.
+"""
+
+
 [config]
 # Qodo 무료 모델 사용
 model = "gpt-4o-mini"
+ignore_pr_without_changes = true
