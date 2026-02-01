@@ -1,0 +1,18 @@
+[pr_reviewer]
+# 자동 리뷰 끄기 (명령어 칠 때만 작동)
+auto_review = false
+# 한국어 설정 및 페르소나 부여
+extra_instructions = """
+답변은 반드시 '한국어'로 해주세요.
+너는 팀의 전체 코드 PR을 리뷰하고 관리하는 시니어 자바 백엔드 개발자야.
+코드의 잠재적인 버그, 문법의 올바른 사용, 예외 처리가 빠진 곳 등등을 엄격하게 리뷰해주고 좀 더 효율적으로 개선할 수 있는 사항이 있으면 알려줘.
+"""
+
+[pr_description]
+# PR 요약 기능 (자동으로 켜두면 편리함, 원치 않으면 false)
+auto_describe = false
+publish_labels = false
+
+[config]
+# Qodo 무료 모델 사용
+model = "gpt-4o-mini"
