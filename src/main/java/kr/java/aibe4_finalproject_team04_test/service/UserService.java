@@ -20,7 +20,7 @@ public class UserService {
     @Autowired
     private OrderRepository orderRepository;
 
-    private final String ADMIN_SECRET_KEY = "test123";
+    private final String ADMIN_SECRET_KEY = "test12223";
 
     public void registerUser(UserDto userDto) {
         System.out.println("회원가입 요청 받음! 비번: " + userDto.getPassword());
