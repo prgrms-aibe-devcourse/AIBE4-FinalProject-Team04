@@ -24,7 +24,7 @@ Just summarize the changes in Korean.
 [config]
 # 무료 키는 최신 모델(gpt-4o)을 못 쓸 수 있습니다. 
 # 안전한 gpt-3.5-turbo로 고정하세요.
-model = "gpt-3.5-turbo"
-model_turbo = "gpt-3.5-turbo"
-fallback_models = ["gpt-3.5-turbo"]
-# ignore_pr_without_changes = true
+# model = "gpt-3.5-turbo"
+# model_turbo = "gpt-3.5-turbo"
+# fallback_models = ["gpt-3.5-turbo"]
+ignore_pr_without_changes = true
