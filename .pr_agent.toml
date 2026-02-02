@@ -1,3 +1,10 @@
+[config]
+# 최신 기본값(o4-mini) 대신 안정적인 모델로 고정
+model = "gpt-4o-mini"
+model_turbo = "gpt-4o-mini"
+fallback_models = ["gpt-3.5-turbo"]
+ignore_pr_without_changes = true
+
 [pr_reviewer]
 # 자동 리뷰 끄기 (명령어 칠 때만 작동)
 auto_review = false
@@ -19,9 +26,3 @@ Answer strictly in Korean.
 Do NOT generate 'PR Compliance Guide' or 'User Guide'.
 Just summarize the changes in Korean.
 """
-
-
-#[config]
-# Qodo 무료 모델 사용
-#model = "gpt-4o-mini"
-#ignore_pr_without_changes = true
