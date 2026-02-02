@@ -1,28 +1,42 @@
 [config]
-# 최신 기본값(o4-mini) 대신 안정적인 모델로 고정
+# 시스템 언어 강제 설정
+response_language = "ko-KR"
+
+# 모델 설정
 model = "gpt-4o-mini"
 model_turbo = "gpt-4o-mini"
 fallback_models = ["gpt-3.5-turbo"]
 ignore_pr_without_changes = true
 
 [pr_reviewer]
-# 자동 리뷰 끄기 (명령어 칠 때만 작동)
+# 자동 리뷰 끄기
 auto_review = false
-# 한국어 설정 및 페르소나 부여
+
+# 불필요한 영어 섹션 제거 (Compliance Guide 등)
+require_ticket_analysis_review = false # 티켓/이슈 연동 분석 끄기
+require_security_review = true         # 보안 리뷰는 유지
+require_score_review = false           # 점수 매기기 끄기 (잡음 감소)
+enable_help_text = false               # "사용법 가이드" 제거
+
+# 한국어 프롬프트
 extra_instructions = """
-Answer strictly in Korean.
-Do NOT generate a 'PR Compliance Guide' section.
-Do NOT generate any English text.
-Focus only on code analysis.
+답변은 반드시 '한국어'로 작성해주세요.
+개발자가 이해하기 쉬운 친절한 어조로 작성해주세요.
+코드의 잠재적 버그와 로직 오류에 집중해주세요.
 """
 
 [pr_description]
-# PR 요약 기능 (자동으로 켜두면 편리함, 원치 않으면 false)
+# 자동 요약 끄기
 auto_describe = false
 publish_labels = false
+enable_help_text = false 
 
 extra_instructions = """
-Answer strictly in Korean.
-Do NOT generate 'PR Compliance Guide' or 'User Guide'.
-Just summarize the changes in Korean.
+변경 사항을 한국어로 간결하게 요약해주세요.
+"""
+
+[pr_code_suggestions]
+# 코드 제안 기능 한국어 설정
+extra_instructions = """
+제안하는 코드는 반드시 한국어 설명과 함께 작성해주세요.
 """
