@@ -19,5 +19,5 @@ jobs:
       - name: PR Agent action
         uses: Codium-ai/pr-agent@main
         env:
-          PR_AGENT_KEY: ${{ secrets.QODO_API_KEY }}
+          OPENAI_KEY: ${{ secrets.QODO_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
