@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.Date;
+
 @Entity
 @Getter
 @Setter
@@ -13,6 +15,11 @@ public class Order {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private Long userId; // 연관관계 매핑 없이 단순 ID 저장 (초보자 스타일)
-    private int amount;  // 주문 금액
+    private Long userId;
+    private int amount;
+
+    @Temporal(TemporalType.TIMESTAMP)
+    private Date orderDate;
+
+    private String status;
 }
