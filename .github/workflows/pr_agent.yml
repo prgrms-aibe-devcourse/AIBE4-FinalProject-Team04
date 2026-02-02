@@ -1,8 +1,8 @@
 name: Qodo Merge (Public Free)
 
 on:
-  # pull_request:
-  #   types: [opened, reopened, ready_for_review]
+  pull_request:
+    types: [opened, reopened, ready_for_review]
   issue_comment:
     types: [created]
 
@@ -19,5 +19,5 @@ jobs:
       - name: PR Agent action
         uses: Codium-ai/pr-agent@main
         env:
-          CODIUM_API_KEY: ${{ secrets.QODO_API_KEY }}
+          OPENAI_KEY: ${{ secrets.QODO_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
