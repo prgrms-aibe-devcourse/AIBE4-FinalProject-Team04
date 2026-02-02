@@ -1,3 +1,10 @@
+[config]
+# 최신 기본값(o4-mini) 대신 안정적인 모델로 고정
+model = "gpt-4o-mini"
+model_turbo = "gpt-4o-mini"
+fallback_models = ["gpt-3.5-turbo"]
+ignore_pr_without_changes = true
+
 [pr_reviewer]
 # 자동 리뷰 끄기 (명령어 칠 때만 작동)
 auto_review = false
@@ -19,12 +26,3 @@ Answer strictly in Korean.
 Do NOT generate 'PR Compliance Guide' or 'User Guide'.
 Just summarize the changes in Korean.
 """
-
-
-[config]
-# 무료 키는 최신 모델(gpt-4o)을 못 쓸 수 있습니다. 
-# 안전한 gpt-3.5-turbo로 고정하세요.
-# model = "gpt-3.5-turbo"
-# model_turbo = "gpt-3.5-turbo"
-# fallback_models = ["gpt-3.5-turbo"]
-ignore_pr_without_changes = true
