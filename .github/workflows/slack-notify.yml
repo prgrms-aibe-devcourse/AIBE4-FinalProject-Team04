@@ -1,0 +1,30 @@
+name: Slack Notification
+
+# 언제 알림을 보낼지 설정 (PR 생성, 리뷰 요청 시)
+on:
+  pull_request:
+    types: [opened, reopened, review_requested]
+
+jobs:
+  slack-notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Slack Notification
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          # 아까 등록한 웹훅 URL 비밀키
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
+          
+          # 알림 메시지 커스터마이징
+          SLACK_USERNAME: GitBot       # 봇 이름
+          SLACK_ICON: https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png
+          SLACK_COLOR: '#36a64f'       # 메시지 옆에 뜰 색상 (초록색)
+          SLACK_TITLE: '🚀 새로운 PR/리뷰 요청이 도착했습니다!'
+          SLACK_MESSAGE: |
+            *PR 제목:* ${{ github.event.pull_request.title }}
+            *요청자:* ${{ github.actor }}
+            *리뷰어:* ${{ github.event.requested_reviewer.login }}
+            *링크:* ${{ github.event.pull_request.html_url }}
+            
+            리뷰어로 지정된 분은 확인 부탁드려요!
+          SLACK_FOOTER: 'Powered by GitHub Actions'
