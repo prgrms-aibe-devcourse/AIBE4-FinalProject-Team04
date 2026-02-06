@@ -1,30 +1,95 @@
 name: Slack Notification
 
-# 언제 알림을 보낼지 설정 (PR 생성, 리뷰 요청 시)
 on:
   pull_request:
-    types: [opened, reopened, review_requested]
+    types: [review_requested]
+
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
 
 jobs:
   slack-notify:
     runs-on: ubuntu-latest
     steps:
+      - name: Map GitHub User to Slack Member ID
+        id: slack-mapper
+        shell: bash
+        run: |
+          # ---------------------------------------------------
+          # [1] 상황에 따라 타겟 GitHub 아이디 추출
+          # ---------------------------------------------------
+          TARGET_GITHUB_ID=""
+          EVENT_TYPE="${{ github.event_name }}"
+          COMMENT_BODY="${{ github.event.comment.body }}"
+          
+          # 사이드바에서 리뷰어로 지정
+          if [[ "$EVENT_TYPE" == "pull_request" ]]; then
+            
+            TARGET_GITHUB_ID="${{ github.event.requested_reviewer.login }}"
+            MSG_HEADER="📢 리뷰 요청이 도착했습니다!"
+            PREVIEW_TEXT="리뷰어로 지정되었습니다."
+          
+          # 댓글에서 리뷰어 호출
+          elif [[ "$EVENT_TYPE" == "issue_comment" || "$EVENT_TYPE" == "pull_request_review_comment" ]]; then
+            COMMENT_BODY="${{ github.event.comment.body }}"
+            MSG_HEADER="💬 새로운 멘션/댓글이 있습니다!"
+            if [ ${#COMMENT_BODY} -gt 100 ]; then
+              PREVIEW_TEXT="${COMMENT_BODY:0:100} ..."
+            else
+              PREVIEW_TEXT="$COMMENT_BODY"
+            fi
+          fi
+
+          # ---------------------------------------------------
+          # [2] 팀원 매핑 로직
+          # ---------------------------------------------------
+          SLACK_MENTION=""
+
+          if [[ "$TARGET_GITHUB_ID" == "godqhrenf" ]] || [[ "$COMMENT_BODY" == *"@godqhrenf"* ]]; then
+            SLACK_MENTION="$SLACK_MENTION <@U0ACQ0WAY3T>"
+          fi
+
+          if [[ "$TARGET_GITHUB_ID" == "Park Goeun" ]] || [[ "$COMMENT_BODY" == *"@Park Goeun"* ]]; then
+            SLACK_MENTION="$SLACK_MENTION <@U0AC8LPUHKP>"
+          fi
+          
+          if [[ "$TARGET_GITHUB_ID" == "Juhyeong" ]] || [[ "$COMMENT_BODY" == *"@Juhyeong"* ]]; then
+            SLACK_MENTION="$SLACK_MENTION <@U0AC8LPD093>"
+          fi
+          
+          if [[ "$TARGET_GITHUB_ID" == "jk-Nam" ]] || [[ "$COMMENT_BODY" == *"@jk-Nam"* ]]; then
+            SLACK_MENTION="$SLACK_MENTION <@U0ACA29BKBQ>"
+          fi
+          
+          # ---------------------------------------------------
+          # [3] 환경 변수 지정
+          # ---------------------------------------------------
+          echo "SLACK_MENTION=$SLACK_MENTION" >> $GITHUB_ENV
+          echo "MSG_HEADER=$MSG_HEADER" >> $GITHUB_ENV
+          echo "PREVIEW_TEXT<<EOF" >> $GITHUB_ENV
+          echo "$PREVIEW_TEXT" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
       - name: Send Slack Notification
         uses: rtCamp/action-slack-notify@v2
         env:
-          # 아까 등록한 웹훅 URL 비밀키
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
-          
-          # 알림 메시지 커스터마이징
-          SLACK_USERNAME: GitBot       # 봇 이름
+          SLACK_USERNAME: GitBot
           SLACK_ICON: https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png
-          SLACK_COLOR: '#36a64f'       # 메시지 옆에 뜰 색상 (초록색)
-          SLACK_TITLE: '🚀 새로운 PR/리뷰 요청이 도착했습니다!'
+          SLACK_COLOR: '#36a64f'
+
+          SLACK_TITLE: "${{ env.MSG_HEADER }}"
+
           SLACK_MESSAGE: |
-            *PR 제목:* ${{ github.event.pull_request.title }}
-            *요청자:* ${{ github.actor }}
-            *리뷰어:* ${{ github.event.requested_reviewer.login }}
-            *링크:* ${{ github.event.pull_request.html_url }}
+            *PR:* ${{ github.event.pull_request.title || github.event.issue.title }}
+            *링크:* ${{ github.event.pull_request.html_url || github.event.comment.html_url }}
+            *작성자:* ${{ github.actor }}
             
-            리뷰어로 지정된 분은 확인 부탁드려요!
+            *내용:*
+            > ${{ env.PREVIEW_TEXT }}
+            
+            ${{ env.SLACK_MENTION }} 확인 부탁드려요!
+
           SLACK_FOOTER: 'Powered by GitHub Actions'
