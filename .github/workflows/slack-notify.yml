@@ -51,11 +51,11 @@ jobs:
             SLACK_MENTION="$SLACK_MENTION <@U0ACQ0WAY3T>"
           fi
 
-          if [[ "$TARGET_GITHUB_ID" == "Park Goeun" ]] || [[ "$COMMENT_BODY" == *"@Park Goeun"* ]]; then
+          if [[ "$TARGET_GITHUB_ID" == "ParkGoeun00" ]] || [[ "$COMMENT_BODY" == *"@ParkGoeun00"* ]]; then
             SLACK_MENTION="$SLACK_MENTION <@U0AC8LPUHKP>"
           fi
           
-          if [[ "$TARGET_GITHUB_ID" == "Juhyeong" ]] || [[ "$COMMENT_BODY" == *"@Juhyeong"* ]]; then
+          if [[ "$TARGET_GITHUB_ID" == "zoo-brong" ]] || [[ "$COMMENT_BODY" == *"@zoo-brong"* ]]; then
             SLACK_MENTION="$SLACK_MENTION <@U0AC8LPD093>"
           fi
           
