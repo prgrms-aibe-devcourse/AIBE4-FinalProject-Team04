@@ -22,4 +22,5 @@ public class Order {
     private Date orderDate;
 
     private String status;
+
 }
