@@ -12,6 +12,7 @@ on:
 jobs:
   slack-notify:
     runs-on: ubuntu-latest
+    if: ${{ !endsWith(github.actor, '[bot]') }}
     steps:
       - name: Map GitHub User to Slack Member ID
         id: slack-mapper
