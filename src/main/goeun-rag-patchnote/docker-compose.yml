@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  my-postgres:
+    image: pgvector/pgvector:pg16
+    container_name: patchnote-demo-db
+    environment:
+      POSTGRES_DB: patchnotedb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: qwer1234
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./db_data:/var/lib/postgresql/data # DB 데이터를 현재 폴더의 db_data에 저장 (삭제되도 데이터 유지)
