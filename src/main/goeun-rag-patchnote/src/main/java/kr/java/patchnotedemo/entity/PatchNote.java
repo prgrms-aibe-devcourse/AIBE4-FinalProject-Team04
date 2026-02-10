@@ -1,13 +1,15 @@
-package kr.java.patchnote_demo.entity;
+package kr.java.patchnotedemo.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.LocalDate;
-import kr.java.patchnote_demo.enums.PatchNoteStatus;
+import kr.java.patchnotedemo.enums.PatchNoteStatus;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -35,6 +37,7 @@ public class PatchNote extends BaseTimeEntity {
     private LocalDate startDate; // 업데이트 반영 시작일
     private LocalDate endDate; // 업데이트 반영 종료일
 
+    @Enumerated(EnumType.STRING)
     private PatchNoteStatus status;
 
     @Column(columnDefinition = "TEXT")

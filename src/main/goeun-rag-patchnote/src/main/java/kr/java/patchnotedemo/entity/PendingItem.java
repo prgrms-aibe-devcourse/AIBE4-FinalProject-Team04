@@ -1,4 +1,4 @@
-package kr.java.patchnote_demo.entity;
+package kr.java.patchnotedemo.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -8,9 +8,9 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import kr.java.patchnote_demo.enums.IssueType;
-import kr.java.patchnote_demo.enums.PendingItemStatus;
-import kr.java.patchnote_demo.enums.SourceType;
+import kr.java.patchnotedemo.enums.IssueType;
+import kr.java.patchnotedemo.enums.PendingItemStatus;
+import kr.java.patchnotedemo.enums.SourceType;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
