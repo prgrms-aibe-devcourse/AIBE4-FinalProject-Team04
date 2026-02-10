@@ -20,5 +20,8 @@ services:
     # 로컬/테스트 용이므로 포트를 열어둠 (보안상 운영에선 닫거나 방화벽 필수)
     ports:
       - "6379:6379"
-    # AOF(데이터 지속성) 활성화 옵션
+    # AOF 활성화: 데이터를 1초마다 파일에 기록함 (안전함)
     command: redis-server --appendonly yes
+    volumes:
+      # 볼륨 마운트: (내 EC2 폴더) : (컨테이너 내부 폴더)
+      - ./redis-data:/data
