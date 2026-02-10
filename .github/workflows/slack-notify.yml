@@ -64,11 +64,22 @@ jobs:
             SLACK_MENTION="$SLACK_MENTION <@U0ACA29BKBQ>"
           fi
           
+          SHOULD_SEND="false"
+          # 조건 A: PR 리뷰 요청인 경우 -> 무조건 전송
+          if [[ "$EVENT_TYPE" == "pull_request" ]]; then
+            SHOULD_SEND="true"
+          
+          # 조건 B: 댓글 이벤트인 경우 -> 멘션된 사람이 있을 때만 전송
+          elif [[ -n "$SLACK_MENTION" ]]; then
+            SHOULD_SEND="true"
+          fi
+
           # ---------------------------------------------------
           # [3] 환경 변수 지정
           # ---------------------------------------------------
           echo "SLACK_MENTION=$SLACK_MENTION" >> $GITHUB_ENV
           echo "MSG_HEADER=$MSG_HEADER" >> $GITHUB_ENV
+          echo "SHOULD_SEND=$SHOULD_SEND" >> $GITHUB_ENV
           echo "PREVIEW_TEXT<<EOF" >> $GITHUB_ENV
           echo "$PREVIEW_TEXT" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
