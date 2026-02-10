@@ -1,0 +1,53 @@
+spring:
+  application:
+    name: juhyeong-rag-chatting
+  config:
+    import: optional:classpath:env.properties
+
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  ai:
+    model:
+      chat: ollama
+      embedding: ollama
+
+    ollama:
+      chat:
+        options:
+          model: hf.co/rippertnt/HyperCLOVAX-SEED-Text-Instruct-1.5B-Q4_K_M-GGUF
+      embedding:
+        options:
+          model: bge-m3
+      init:
+        pull-model-strategy: when_missing
+
+    vectorstore:
+      pgvector:
+        table-name: test_vector_store
+        initialize-schema: true
+        dimensions: 1024
+
+app:
+  upload:
+    dir: D:/local-storge
+  chat:
+    system-message: "당신은 문서 기반 RAG 비서입니다. 제공된 문서 컨텍스트를 우선 활용해 답변하세요."
+
+logging:
+  level:
+    org:
+      springframework:
+        ai:
+          chat:
+            client:
+              advisor: debug
