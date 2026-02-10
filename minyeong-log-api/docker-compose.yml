@@ -1,0 +1,24 @@
+services:
+  # 1. Spring Boot API (GHCR에서 다운로드)
+  api:
+    # 이미지명은 본인의 GitHub ID와 리포지토리 이름으로 수정 필수!
+    image: ghcr.io/godqhrenf/log-api:latest
+    container_name: log-api
+    ports:
+      - "8080:8080" # 외부 접속용 포트
+    environment:
+      # Docker Compose 내부에서는 서비스명('redis')이 곧 호스트명이 됨
+      - SPRING_DATA_REDIS_HOST=redis
+      - SPRING_DATA_REDIS_PORT=6379
+    depends_on:
+      - redis # Redis가 먼저 켜져야 API가 켜짐
+
+  # 2. Redis (공식 이미지 사용)
+  redis:
+    image: redis:alpine
+    container_name: log-redis
+    # 로컬/테스트 용이므로 포트를 열어둠 (보안상 운영에선 닫거나 방화벽 필수)
+    ports:
+      - "6379:6379"
+    # AOF(데이터 지속성) 활성화 옵션
+    command: redis-server --appendonly yes
