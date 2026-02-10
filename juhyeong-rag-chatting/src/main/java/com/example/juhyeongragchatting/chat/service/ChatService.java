@@ -23,6 +23,7 @@ import org.springframework.stereotype.Service;
 import com.example.juhyeongragchatting.chat.dto.ChatReference;
 import com.example.juhyeongragchatting.chat.dto.ChatRequest;
 import com.example.juhyeongragchatting.chat.dto.SearchFilterResult;
+import com.example.juhyeongragchatting.file.model.FileMetadata;
 import com.example.juhyeongragchatting.file.service.FileSearchService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -64,7 +65,7 @@ public class ChatService {
 
 		String filterExpression = buildFilterExpression(filterResult.fileIds());
 		log.debug("Chat filter expression: {}", filterExpression);
-		log.info("[사용자질문] {}", request.message());
+		log.info("[사용자 질문] {}", request.message());
 
 		AtomicReference<List<ChatReference>> referencesHolder = new AtomicReference<>(List.of());
 		AtomicBoolean referencesExtracted = new AtomicBoolean(false);
@@ -74,7 +75,6 @@ public class ChatService {
 			? request.conversationId()
 			: ChatMemory.DEFAULT_CONVERSATION_ID;
 
-		// 1. 프롬프트 구성
 		ChatClient.ChatClientRequestSpec promptSpec = chatClient.prompt()
 			.system(systemMessage)
 			.user(request.message())
@@ -83,21 +83,17 @@ public class ChatService {
 				advisor.param(VectorStoreDocumentRetriever.FILTER_EXPRESSION, filterExpression);
 			});
 
-		// 2. 스트리밍 응답 수신
 		Flux<ChatClientResponse> responseStream = promptSpec.stream().chatClientResponse();
 
-		// 3. 응답에서 관련 문서 추출 + 참조 문서 수집
 		Flux<ServerSentEvent<String>> tokenEvents = responseStream.mapNotNull(response -> {
 			extractReferences(response, referencesHolder, referencesExtracted);
 			return toTokenEvent(response);
 		});
 
-		// 4. 스트리밍 종료 후 참조 문서 및 완료 이벤트 추가
 		Flux<ServerSentEvent<String>> endEvents = Flux.defer(
 			() -> buildEndEvents(referencesHolder.get(), filterResult.description())
 		);
 
-		// 5. 최종 조합: 토큰 이벤트와 종료 이벤트를 순서대로 처리
 		return tokenEvents
 			.concatWith(endEvents)
 			.onErrorResume(e -> {
@@ -105,8 +101,6 @@ public class ChatService {
 				return errorEvents("응답 생성 중 오류가 발생했습니다: " + e.getMessage());
 			});
 	}
-
-	// ==================== 스트리밍 헬퍼 ====================
 
 	private void extractReferences(
 		ChatClientResponse response,
@@ -151,8 +145,6 @@ public class ChatService {
 		return Flux.fromIterable(events);
 	}
 
-	// ==================== 유틸 ====================
-
 	private String buildFilterExpression(List<Long> fileIds) {
 		return "fileId in ["
 			+ fileIds.stream().map(id -> "'" + id + "'").collect(Collectors.joining(", "))
@@ -167,13 +159,37 @@ public class ChatService {
 	}
 
 	private List<ChatReference> buildReferences(List<Document> documents) {
+		Set<Long> fileIdSet = new LinkedHashSet<>();
+		for (Document doc : documents) {
+			Object fileIdObj = doc.getMetadata().get("fileId");
+			if (fileIdObj != null) {
+				try {
+					fileIdSet.add(Long.parseLong(String.valueOf(fileIdObj)));
+				} catch (NumberFormatException ignored) {}
+			}
+		}
+
+		Map<Long, FileMetadata> metadataMap = fileSearchService.getMetadataByIds(fileIdSet);
+
 		Set<String> seen = new LinkedHashSet<>();
 		List<ChatReference> references = new ArrayList<>();
 
 		for (Document doc : documents) {
 			Map<String, Object> meta = doc.getMetadata();
-			String originalFileName = String.valueOf(meta.getOrDefault("originalFileName", ""));
-			String fileVersion = String.valueOf(meta.getOrDefault("fileVersion", ""));
+			Long fileId;
+			try {
+				fileId = Long.parseLong(String.valueOf(meta.getOrDefault("fileId", "")));
+			} catch (NumberFormatException e) {
+				continue;
+			}
+
+			FileMetadata fileMeta = metadataMap.get(fileId);
+			if (fileMeta == null) {
+				continue;
+			}
+
+			String originalFileName = fileMeta.getOriginalFileName();
+			String fileVersion = fileMeta.getVersionString();
 
 			if (seen.add(originalFileName + "|" + fileVersion)) {
 				String text = doc.getText() != null ? doc.getText() : "";
@@ -182,7 +198,7 @@ public class ChatService {
 				references.add(new ChatReference(
 					originalFileName,
 					fileVersion,
-					String.valueOf(meta.getOrDefault("fileCategory", "")),
+					fileMeta.getFileCategory(),
 					preview
 				));
 			}

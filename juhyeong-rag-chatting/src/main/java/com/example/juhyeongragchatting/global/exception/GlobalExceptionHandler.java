@@ -24,7 +24,23 @@ public class GlobalExceptionHandler {
 
 	@ExceptionHandler(DuplicateResourceException.class)
 	public ResponseEntity<Map<String, String>> handleDuplicate(DuplicateResourceException e) {
-		return ResponseEntity.status(HttpStatus.CONFLICT)
-			.body(Map.of("message", e.getMessage()));
+		Map<String, String> body = new java.util.HashMap<>();
+		body.put("message", e.getMessage());
+		if (e.getCode() != null) {
+			body.put("code", e.getCode());
+		}
+		if (e.getDuplicateFileId() != null) {
+			body.put("duplicateFileId", e.getDuplicateFileId());
+		}
+		if (e.getDuplicateFileName() != null) {
+			body.put("duplicateFileName", e.getDuplicateFileName());
+		}
+		if (e.getDuplicateVersion() != null) {
+			body.put("duplicateVersion", e.getDuplicateVersion());
+		}
+		if (e.getDuplicateGroupId() != null) {
+			body.put("duplicateGroupId", e.getDuplicateGroupId());
+		}
+		return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
 	}
 }

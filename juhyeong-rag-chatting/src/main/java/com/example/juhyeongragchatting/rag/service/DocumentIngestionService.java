@@ -50,7 +50,7 @@ public class DocumentIngestionService {
 		DocumentReader reader = documentReaderFactory.createReader(new FileSystemResource(filePath));
 		List<Document> documents = reader.read();
 		log.info(
-			"[1/4] 텍스트 추출 완료 - {} document(s), 총 {}자",
+			"[1/4] 텍스트 추출 완료 - {} document(s), 총 {} chars",
 			documents.size(),
 			documents.stream().mapToInt(d -> d.getText().length()).sum()
 		);
@@ -58,20 +58,20 @@ public class DocumentIngestionService {
 	}
 
 	private void enrichMetadata(List<Document> documents, FileMetadata metadata) {
-		log.info("[2/4] 메타데이터 주입 - fileId={}, fileName='{}', version='{}', category='{}'",
-			metadata.getId(), metadata.getFileName(), metadata.getFileVersion(), metadata.getFileCategory()
+		log.info("[2/4] 메타데이터 주입 - fileId={}, fileName='{}', version='{}'",
+			metadata.getId(), metadata.getFileName(),
+			metadata.getVersionString()
 		);
 		for (Document doc : documents) {
 			doc.getMetadata().put("fileId", String.valueOf(metadata.getId()));
 			doc.getMetadata().put("fileName", metadata.getFileName());
-			doc.getMetadata().put("fileVersion", metadata.getFileVersion());
-			doc.getMetadata().put("fileCategory", metadata.getFileCategory());
+			doc.getMetadata().put("fileVersion", metadata.getVersionString());
 			doc.getMetadata().put("originalFileName", metadata.getOriginalFileName());
 		}
 	}
 
 	private List<Document> splitIntoChunks(List<Document> documents) {
-		log.info("[3/4] 토큰 기반 청킹 시작");
+		log.info("[3/4] 청킹 시작");
 		List<Document> chunks = documentTransformer.apply(documents);
 		log.info("[3/4] 청킹 완료 - {} chunks 생성", chunks.size());
 		try {
@@ -96,7 +96,7 @@ public class DocumentIngestionService {
 		log.info("[4/4] VectorStore 저장 완료");
 
 		List<String> chunkIds = chunks.stream().map(Document::getId).toList();
-		log.info("File '{}' 수집 완료 - 총 {} chunks, ids={}", metadata.getOriginalFileName(), chunkIds.size(), chunkIds);
+		log.info("File '{}' 처리 완료 - 총 {} chunks, ids={}", metadata.getOriginalFileName(), chunkIds.size(), chunkIds);
 		return chunkIds;
 	}
 }

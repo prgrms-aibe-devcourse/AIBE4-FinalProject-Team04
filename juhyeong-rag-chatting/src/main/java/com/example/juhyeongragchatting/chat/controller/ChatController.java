@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.example.juhyeongragchatting.chat.dto.ChatRequest;
 import com.example.juhyeongragchatting.chat.service.ChatService;
+import com.example.juhyeongragchatting.file.dto.FileGroupResponse;
 import com.example.juhyeongragchatting.file.service.FileSearchService;
 
 import lombok.RequiredArgsConstructor;
@@ -36,13 +37,13 @@ public class ChatController {
 		return fileSearchService.getDistinctCategories();
 	}
 
-	@GetMapping("/files")
-	public List<String> getFileNames() {
-		return fileSearchService.getDistinctOriginalFileNames();
+	@GetMapping("/groups")
+	public List<FileGroupResponse> getGroups() {
+		return fileSearchService.getDistinctGroups();
 	}
 
-	@GetMapping("/files/{name}/versions")
-	public List<String> getVersions(@PathVariable String name) {
-		return fileSearchService.getVersionsByOriginalFileName(name);
+	@GetMapping("/groups/{groupId}/versions")
+	public List<String> getVersions(@PathVariable Long groupId) {
+		return fileSearchService.getVersionsByGroupId(groupId);
 	}
 }

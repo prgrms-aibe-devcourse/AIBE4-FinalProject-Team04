@@ -1,7 +1,8 @@
 package com.example.juhyeongragchatting.file.service;
 
-import java.util.Comparator;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -11,6 +12,7 @@ import org.springframework.stereotype.Service;
 import com.example.juhyeongragchatting.chat.dto.SearchFilterResult;
 import com.example.juhyeongragchatting.chat.dto.SearchScope;
 import com.example.juhyeongragchatting.chat.dto.VersionPolicy;
+import com.example.juhyeongragchatting.file.dto.FileGroupResponse;
 import com.example.juhyeongragchatting.file.model.FileMetadata;
 
 import lombok.RequiredArgsConstructor;
@@ -27,23 +29,25 @@ public class FileSearchService {
 		Stream<FileMetadata> candidates = switch (scope) {
 			case ALL -> fileStorageService.getAllMetadata().stream();
 			case CATEGORY -> fileStorageService.getByCategory(filterValue).stream();
-			case FILE -> fileStorageService.getByOriginalFileName(filterValue).stream();
+			case GROUP -> fileStorageService.getByGroupId(Long.parseLong(filterValue)).stream();
 		};
 		List<FileMetadata> filtered = candidates.toList();
 
 		List<Long> fileIds = switch (versionPolicy) {
 			case ALL_VERSIONS -> filtered.stream().map(FileMetadata::getId).toList();
 			case LATEST -> filtered.stream().collect(
-					Collectors.groupingBy(FileMetadata::getOriginalFileName,
-						Collectors.maxBy(Comparator.comparingLong(FileMetadata::getId))
+					Collectors.groupingBy(FileMetadata::getGroupId,
+						Collectors.maxBy(FileMetadata.VERSION_COMPARATOR)
 					)
 				).values().stream()
 				.filter(Optional::isPresent)
 				.map(opt -> opt.get().getId())
 				.toList();
 			case SPECIFIC -> filtered.stream()
-				.filter(m -> versions != null && versions.contains(m.getFileVersion()))
-				.map(FileMetadata::getId).toList();
+				.filter(m -> versions != null && versions.contains(m.getVersionString()))
+				.map(FileMetadata::getId)
+				.limit(1)
+				.toList();
 		};
 
 		String description = buildDescription(scope, versionPolicy, filterValue, versions);
@@ -54,12 +58,16 @@ public class FileSearchService {
 		return fileStorageService.getDistinctCategories();
 	}
 
-	public List<String> getDistinctOriginalFileNames() {
-		return fileStorageService.getDistinctOriginalFileNames();
+	public List<FileGroupResponse> getDistinctGroups() {
+		return fileStorageService.getDistinctGroups();
 	}
 
-	public List<String> getVersionsByOriginalFileName(String originalFileName) {
-		return fileStorageService.getVersionsByOriginalFileName(originalFileName);
+	public List<String> getVersionsByGroupId(Long groupId) {
+		return fileStorageService.getVersionsByGroupId(groupId);
+	}
+
+	public Map<Long, FileMetadata> getMetadataByIds(Collection<Long> ids) {
+		return fileStorageService.getMetadataByIds(ids);
 	}
 
 	private String buildDescription(
@@ -68,13 +76,14 @@ public class FileSearchService {
 		String scopeDesc = switch (scope) {
 			case ALL -> "전체 문서";
 			case CATEGORY -> "카테고리: " + filterValue;
-			case FILE -> "파일: " + filterValue;
+			case GROUP -> "그룹: " + filterValue;
 		};
 		String versionDesc = switch (versionPolicy) {
 			case LATEST -> "최신 버전";
 			case ALL_VERSIONS -> "모든 버전";
-			case SPECIFIC -> "버전: " + String.join(", ", versions);
+			case SPECIFIC -> "특정 파일: " + String.join(", ", versions);
 		};
 		return scopeDesc + " (" + versionDesc + ")";
 	}
+
 }

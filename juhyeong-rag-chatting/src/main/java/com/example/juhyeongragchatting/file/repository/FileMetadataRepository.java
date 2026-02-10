@@ -3,44 +3,94 @@ package com.example.juhyeongragchatting.file.repository;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import com.example.juhyeongragchatting.file.model.FileGroup;
 import com.example.juhyeongragchatting.file.model.FileMetadata;
 
 public interface FileMetadataRepository extends JpaRepository<FileMetadata, Long> {
 
-	Optional<FileMetadata> findFirstByOriginalFileNameAndFileHash(
-		String originalFileName, String fileHash
+	Optional<FileMetadata> findTopByFileGroupOrderByMajorVersionDescMinorVersionDescPatchVersionDesc(FileGroup fileGroup);
+
+	boolean existsByOriginalFileName(String originalFileName);
+
+	List<FileMetadata> findByFileGroup_Category(String category);
+
+	List<FileMetadata> findByFileGroup(FileGroup fileGroup);
+
+	List<FileMetadata> findByFileGroupId(Long groupId);
+
+	Optional<FileMetadata> findFirstByFileHash(String fileHash);
+
+	@Query("""
+		select f
+		from FileMetadata f
+		where f.fileGroup.id = :groupId
+		order by f.majorVersion asc, f.minorVersion asc, f.patchVersion asc, f.id asc
+		""")
+	List<FileMetadata> findByFileGroupIdOrderByVersion(@Param("groupId") Long groupId);
+
+	@Query("""
+		select f
+		from FileMetadata f
+		where f.fileGroup.id = :groupId
+		order by f.majorVersion desc, f.minorVersion desc, f.patchVersion desc, f.id desc
+		""")
+	List<FileMetadata> findByFileGroupIdOrderByVersionDesc(@Param("groupId") Long groupId);
+
+	boolean existsByFileGroupIdAndMajorVersionAndMinorVersionAndPatchVersion(
+		Long groupId, int majorVersion, int minorVersion, int patchVersion
 	);
 
-	Optional<FileMetadata> findTopByOriginalFileNameOrderByIdDesc(String originalFileName);
-
-	List<FileMetadata> findByFileCategory(String fileCategory);
-
-	List<FileMetadata> findByOriginalFileName(String originalFileName);
-
 	@Query("""
-		select distinct f.fileCategory
+		select count(f) > 0
 		from FileMetadata f
-		where f.fileCategory is not null
-		order by f.fileCategory
+		where f.fileGroup.id = :groupId
+		and f.majorVersion = :major
+		and f.minorVersion = :minor
+		and f.patchVersion = :patch
+		and f.id <> :fileId
 		""")
-	List<String> findDistinctCategories();
+	boolean existsVersionInGroupExcludingId(
+		@Param("groupId") Long groupId,
+		@Param("major") int major,
+		@Param("minor") int minor,
+		@Param("patch") int patch,
+		@Param("fileId") Long fileId
+	);
 
 	@Query("""
-		select distinct f.originalFileName
-		from FileMetadata f
-		order by f.originalFileName
-		""")
-	List<String> findDistinctOriginalFileNames();
-
-	@Query("""
-		select f.fileVersion
+		select count(f) > 0
 		from FileMetadata f
 		where f.originalFileName = :originalFileName
-		order by f.id asc
+		and f.fileGroup.id <> :groupId
 		""")
-	List<String> findVersionsByOriginalFileName(@Param("originalFileName") String originalFileName);
+	boolean existsByOriginalFileNameAndFileGroupIdNot(
+		@Param("originalFileName") String originalFileName,
+		@Param("groupId") Long groupId
+	);
+
+	@Query(value = """
+		SELECT * FROM (
+			SELECT DISTINCT ON (group_id)
+				*
+			FROM file_metadata
+			ORDER BY group_id,
+				major_version DESC, minor_version DESC, patch_version DESC, id DESC
+		) latest
+		ORDER BY major_version DESC, minor_version DESC, patch_version DESC, id DESC
+		""",
+		countQuery = """
+		SELECT COUNT(DISTINCT group_id)
+		FROM file_metadata
+		""",
+		nativeQuery = true)
+	Page<FileMetadata> findLatestPerGroup(Pageable pageable);
+
+	@Query("select count(f) from FileMetadata f where f.fileGroup.id = :groupId")
+	int countByFileGroupId(@Param("groupId") Long groupId);
 }

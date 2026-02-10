@@ -10,6 +10,10 @@ public record FileInfoResponse(
 	String originalFileName,
 	String fileExtension,
 	String downloadUrl,
-	LocalDateTime uploadedAt
+	LocalDateTime uploadedAt,
+	LocalDateTime updatedAt,
+	Long groupId,
+	String groupName,
+	Integer fileCount
 ) {
 }
