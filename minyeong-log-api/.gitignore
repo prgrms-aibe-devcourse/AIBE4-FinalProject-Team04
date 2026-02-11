@@ -39,3 +39,8 @@ out/
 *-dev.yml
 .env
 *.pem
+
+# Docker data directories
+grafana-data/
+influxdb-data/
+redis-data/
