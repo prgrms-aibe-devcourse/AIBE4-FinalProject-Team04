@@ -4,7 +4,7 @@ import io.hypersistence.utils.hibernate.type.json.JsonBinaryType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
-import jakarta.persistence.IdClass;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -16,10 +16,9 @@ import java.util.Map;
 import java.util.UUID;
 
 @Entity
-@Table(name = "logs")
+@Table(name = "logs", indexes = @Index(name = "idx_occurred_at", columnList = "occurredAt"))
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@IdClass(LogId.class)
 public class Log {
 
     @Id
@@ -39,7 +38,6 @@ public class Log {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String body;
 
-    @Id
     @Column(nullable = false, updatable = false) // 수정 방지
     private OffsetDateTime occurredAt; // 파티션 키
 
