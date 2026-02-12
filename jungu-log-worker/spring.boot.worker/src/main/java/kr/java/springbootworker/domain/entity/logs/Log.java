@@ -15,11 +15,11 @@ import java.time.OffsetDateTime;
 import java.util.Map;
 import java.util.UUID;
 
-@Entity(name = "logs")
-@Table(name = "logs", indexes = @Index(name = "idx_occurred_at", columnList = "occurredAt"))
+@Entity(name = "log")
+@Table(name = "log", indexes = @Index(name = "idx_occurred_at", columnList = "occurredAt"))
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class Logs {
+public class Log {
 
     @Id
     private UUID logId;
