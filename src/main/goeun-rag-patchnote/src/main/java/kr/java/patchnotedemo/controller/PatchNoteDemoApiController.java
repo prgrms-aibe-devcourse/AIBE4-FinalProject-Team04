@@ -8,6 +8,7 @@ import kr.java.patchnotedemo.service.DummyDataService;
 import kr.java.patchnotedemo.service.PatchNoteService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -44,15 +45,17 @@ public class PatchNoteDemoApiController {
         return ResponseEntity.ok(patchNoteService.getExcludedItems(projectId));
     }
 
-    @PostMapping("/pending-items/{id}/exclude")
-    public ResponseEntity<Void> excludeItem(@PathVariable Long id) {
-        patchNoteService.excludeItem(id);
+    @DeleteMapping("/pending-items/{id}")
+    public ResponseEntity<Void> excludeItem(
+            @PathVariable Long id, @RequestParam String projectId) {
+        patchNoteService.excludeItem(id, projectId);
         return ResponseEntity.ok().build();
     }
 
-    @PostMapping("/pending-items/{id}/restore")
-    public ResponseEntity<Void> restoreItem(@PathVariable Long id) {
-        patchNoteService.restoreItem(id);
+    @DeleteMapping("/excluded-items/{id}")
+    public ResponseEntity<Void> restoreItem(
+            @PathVariable Long id, @RequestParam String projectId) {
+        patchNoteService.restoreItem(id, projectId);
         return ResponseEntity.ok().build();
     }
 }

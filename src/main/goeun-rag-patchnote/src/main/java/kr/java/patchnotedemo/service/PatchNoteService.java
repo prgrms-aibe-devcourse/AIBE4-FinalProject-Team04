@@ -26,27 +26,33 @@ public class PatchNoteService {
 
     public List<PendingItemResponse> getPendingItems(String projectId) {
         return pendingItemRepository
-                .findByProjectIdAndStatusNot(projectId, PendingItemStatus.EXCLUDED)
+                .findByProjectIdAndStatus(projectId, PendingItemStatus.PENDING)
                 .stream()
                 .map(PendingItemResponse::from)
                 .toList();
     }
 
     @Transactional
-    public void excludeItem(Long id) {
+    public void excludeItem(Long id, String projectId) {
         PendingItem item =
                 pendingItemRepository
-                        .findById(id)
-                        .orElseThrow(() -> new IllegalArgumentException("Item not found: " + id));
+                        .findByIdAndProjectId(id, projectId)
+                        .orElseThrow(
+                                () ->
+                                        new IllegalArgumentException(
+                                                "Item not found or access denied: " + id));
         item.exclude();
     }
 
     @Transactional
-    public void restoreItem(Long id) {
+    public void restoreItem(Long id, String projectId) {
         PendingItem item =
                 pendingItemRepository
-                        .findById(id)
-                        .orElseThrow(() -> new IllegalArgumentException("Item not found: " + id));
+                        .findByIdAndProjectId(id, projectId)
+                        .orElseThrow(
+                                () ->
+                                        new IllegalArgumentException(
+                                                "Item not found or access denied: " + id));
         item.restore();
     }
 }

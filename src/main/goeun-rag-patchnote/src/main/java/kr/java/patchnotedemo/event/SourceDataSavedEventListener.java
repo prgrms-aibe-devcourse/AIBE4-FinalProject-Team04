@@ -19,6 +19,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionalEventListener;
 import org.springframework.util.StreamUtils;
 
@@ -39,6 +41,7 @@ public class SourceDataSavedEventListener {
 
     @Async
     @TransactionalEventListener
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void handleDataSaved(SourceDataSavedEvent event) {
         log.info(
                 "SourceDataSavedEvent 발생 sourceID: {}, content: {}",
@@ -90,18 +93,21 @@ public class SourceDataSavedEventListener {
         try {
             return StreamUtils.copyToString(resource.getInputStream(), StandardCharsets.UTF_8);
         } catch (Exception e) {
-            log.error("Failed to load prompt template", e);
-            return "";
+            throw new RuntimeException("Failed to load prompt template: " + resource.getDescription(), e);
         }
     }
 
     private <T> T extractMetadata(Resource promptResource, String content, Class<T> responseType)
             throws JsonProcessingException {
         String template = loadPromptTemplate(promptResource);
+        if (template == null || template.isBlank()) {
+            throw new IllegalStateException("Prompt template is empty: " + promptResource.getDescription());
+        }
+
         String promptText = template.replace("{content}", content);
         String jsonResponse = chatClient.prompt().user(promptText).call().content();
 
-        log.info("LLM Response: {}", jsonResponse);
+        log.debug("LLM Response: {}", jsonResponse);
 
         if (jsonResponse == null || jsonResponse.isBlank()) {
             throw new IllegalStateException("LLM returned empty response");
@@ -121,7 +127,6 @@ public class SourceDataSavedEventListener {
                         .title(title)
                         .summary(summary)
                         .patchType(patchType)
-                        .originalContent(event.content())
                         .build();
 
         pendingItemRepository.save(item);
