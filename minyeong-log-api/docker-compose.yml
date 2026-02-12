@@ -22,11 +22,11 @@ services:
     # 로컬/테스트 용이므로 포트를 열어둠 (보안상 운영에선 닫거나 방화벽 필수)
     ports:
       - "6379:6379"
-    # AOF 활성화: 데이터를 1초마다 파일에 기록함 (안전함)
-    command: redis-server --appendonly yes
+    command: redis-server /usr/local/etc/redis/redis.conf
     volumes:
-      # 볼륨 마운트: (내 EC2 폴더) : (컨테이너 내부 폴더)
-      - ./redis-data:/data
+      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf # 설정 파일 마운트
+      - ./redis-data:/data # 데이터 저장소 마운트
+    restart: always
 
   # 3. InfluxDB (k6 결과 저장)
   influxdb:
@@ -66,3 +66,21 @@ services:
     # InfluxDB 주소를 환경변수로 등록해둠
     environment:
       - K6_OUT=influxdb=http://influxdb:8086/k6
+
+  # Redis 지표 추출기
+  redis-exporter:
+    image: oliver006/redis_exporter:latest
+    container_name: redis-exporter
+    environment:
+      - REDIS_ADDR=redis://${API_PRIVATE_IP}:6379 # API 서버의 Redis 주소
+    ports:
+      - "9121:9121"
+
+  # 데이터 수집기 (Prometheus)
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
