@@ -8,7 +8,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import kr.java.patchnotedemo.enums.IssueType;
+import kr.java.patchnotedemo.enums.PatchType;
 import kr.java.patchnotedemo.enums.PendingItemStatus;
 import kr.java.patchnotedemo.enums.SourceType;
 import kr.java.patchnotedemo.enums.PatchType;
