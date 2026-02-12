@@ -12,3 +12,4 @@ services:
       - "5432:5432"
     volumes:
       - ./db_data:/var/lib/postgresql/data # DB 데이터를 현재 폴더의 db_data에 저장 (삭제되도 데이터 유지)
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
