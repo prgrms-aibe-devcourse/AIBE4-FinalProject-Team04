@@ -35,3 +35,10 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### Dummy Data ###
+dummy_data/
+
+*-dev.yml
+
+*.py
