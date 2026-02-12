@@ -4,8 +4,8 @@ import { check, sleep } from 'k6';
 // 테스트 설정 (부하 수준)
 export const options = {
     stages: [
-        { duration: '10s', target: 100 }, // 10초 동안 유저 10명까지 서서히 증가
-        { duration: '20s', target: 100 }, // 20초 동안 유저 10명 유지
+        { duration: '10s', target: 100 }, // 10초 동안 유저 100명까지 서서히 증가
+        { duration: '20s', target: 100 }, // 20초 동안 유저 100명 유지
         { duration: '10s', target: 0 },  // 10초 동안 유저 0명으로 감소 (종료)
     ],
 };
