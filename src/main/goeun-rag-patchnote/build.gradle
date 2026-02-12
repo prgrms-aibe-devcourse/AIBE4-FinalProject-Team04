@@ -1,7 +1,7 @@
 plugins {
     id 'java'
-    id 'org.springframework.boot' version '3.3.0'
-    id 'io.spring.dependency-management' version '1.1.5'
+    id 'org.springframework.boot' version '3.5.10'
+    id 'io.spring.dependency-management' version '1.1.7'
     id "com.diffplug.spotless" version "6.23.3"
 }
 
@@ -40,7 +40,7 @@ repositories {
 }
 
 ext {
-    set('springAiVersion', "1.0.0-M1")
+    set('springAiVersion', "1.1.2") // 또는 1.0.0-SNAPSHOT
 }
 
 dependencies {
@@ -54,9 +54,11 @@ dependencies {
     runtimeOnly 'org.postgresql:postgresql'
 
     // Spring AI
-    implementation 'org.springframework.ai:spring-ai-openai-spring-boot-starter'
+    implementation 'org.springframework.ai:spring-ai-starter-model-openai'
+    //Ollama
+    implementation 'org.springframework.ai:spring-ai-starter-model-ollama'
     // Vector DB (PGVector)
-    implementation 'org.springframework.ai:spring-ai-pgvector-store-spring-boot-starter'
+    implementation 'org.springframework.ai:spring-ai-starter-vector-store-pgvector'
 
     // Lombok
     compileOnly 'org.projectlombok:lombok'

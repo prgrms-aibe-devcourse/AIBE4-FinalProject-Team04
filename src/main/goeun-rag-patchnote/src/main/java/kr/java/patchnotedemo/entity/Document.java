@@ -14,7 +14,7 @@ import lombok.NoArgsConstructor;
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@Table(name = "Document")
+@Table(name = "documents")
 public class Document extends BaseTimeEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -33,7 +33,7 @@ public class Document extends BaseTimeEntity {
     private String category; // 기획서, 설계서
 
     @Column(columnDefinition = "TEXT")
-    private String url; // 원본 파일 주소
+    private String fileUrl; // 원본 파일 주소
 
     private String fileType; // PDF, DOCX, PPT, EXCEL
 
@@ -50,7 +50,7 @@ public class Document extends BaseTimeEntity {
             String version,
             String author,
             String category,
-            String url,
+            String fileUrl,
             String fileType,
             Long fileSize,
             String choseong,
@@ -60,7 +60,7 @@ public class Document extends BaseTimeEntity {
         this.version = version;
         this.author = author;
         this.category = category;
-        this.url = url;
+        this.fileUrl = fileUrl;
         this.fileType = fileType;
         this.fileSize = fileSize;
         this.choseong = choseong;

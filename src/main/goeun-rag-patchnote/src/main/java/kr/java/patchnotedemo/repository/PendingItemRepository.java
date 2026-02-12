@@ -14,7 +14,7 @@ public interface PendingItemRepository extends JpaRepository<PendingItem, Long> 
     // 초성 검색 (pg_trgm 활용)
     @Query(
             value =
-                    "SELECT * FROM \"PendingItem\" "
+                    "SELECT * FROM \"pending_items\" "
                             + "WHERE project_id = :projectId "
                             + "AND status = 'PENDING' "
                             + "AND choseong LIKE CONCAT(:keyword, '%')",
@@ -26,7 +26,7 @@ public interface PendingItemRepository extends JpaRepository<PendingItem, Long> 
     // 제목이나 요약에 키워드가 포함된 것을 찾되, 정확도가 높은 순으로 정렬
     @Query(
             value =
-                    "SELECT * FROM \"PendingItem\" "
+                    "SELECT * FROM \"pending_items\" "
                             + "WHERE project_id = :projectId "
                             + "AND status = 'PENDING' "
                             + "AND (title LIKE CONCAT('%', :keyword, '%') OR summary LIKE CONCAT('%', :keyword, '%')) "

@@ -8,7 +8,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import kr.java.patchnotedemo.enums.IssueType;
+import kr.java.patchnotedemo.enums.PatchType;
 import kr.java.patchnotedemo.enums.PendingItemStatus;
 import kr.java.patchnotedemo.enums.SourceType;
 import lombok.AccessLevel;
@@ -19,7 +19,7 @@ import lombok.NoArgsConstructor;
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@Table(name = "PendingItem")
+@Table(name = "pending_items")
 public class PendingItem {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -39,29 +39,29 @@ public class PendingItem {
     private String summary; // LLM이 요약한 내용
 
     @Enumerated(EnumType.STRING)
-    private IssueType category;
+    private PatchType patchType;
 
     @Enumerated(EnumType.STRING)
     private PendingItemStatus status;
 
     private String choseong;
 
-    @Column(columnDefinition = "TEXT")
-    private String originalContent; // 원본 텍스트 (RAG 프롬프트에 넣을 용도)
-
     @Builder
     public PendingItem(
             String projectId,
             SourceType sourceType,
+            Long sourceId,
             String title,
             String summary,
-            IssueType category,
+            PatchType patchType,
+            String originalContent,
             String choseong) {
         this.projectId = projectId;
         this.sourceType = sourceType;
+        this.sourceId = sourceId;
         this.title = title;
         this.summary = summary;
-        this.category = category;
+        this.patchType = patchType;
         this.choseong = choseong;
         this.status = PendingItemStatus.PENDING;
     }
