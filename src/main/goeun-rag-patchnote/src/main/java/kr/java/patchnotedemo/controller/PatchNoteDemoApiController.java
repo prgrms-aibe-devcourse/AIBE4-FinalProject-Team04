@@ -3,14 +3,14 @@ package kr.java.patchnotedemo.controller;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import java.util.List;
 import kr.java.patchnotedemo.dto.PendingItemResponse;
-import kr.java.patchnotedemo.entity.PendingItem;
-import kr.java.patchnotedemo.enums.PendingItemStatus;
 import kr.java.patchnotedemo.enums.SourceType;
-import kr.java.patchnotedemo.repository.PendingItemRepository;
 import kr.java.patchnotedemo.service.DummyDataService;
+import kr.java.patchnotedemo.service.PatchNoteService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class PatchNoteDemoApiController {
 
     private final DummyDataService dummyDataService;
-    private final PendingItemRepository pendingItemRepository;
+    private final PatchNoteService patchNoteService;
 
     @PostMapping("/dummy-data")
     public ResponseEntity<String> generateDummy(
@@ -34,13 +34,28 @@ public class PatchNoteDemoApiController {
     }
 
     @GetMapping("/pending-items")
-    public ResponseEntity<List<PendingItemResponse>> getPendingItems(@RequestParam String projectId) {
-        // EXCLUDED가 아닌 것만 조회
-        return ResponseEntity.ok(
-                pendingItemRepository.findByProjectIdAndStatus(
-                        projectId, PendingItemStatus.PENDING)
-                        .stream()
-                        .map(PendingItemResponse::from)
-                        .toList());
+    public ResponseEntity<List<PendingItemResponse>> getPendingItems(
+            @RequestParam String projectId) {
+        return ResponseEntity.ok(patchNoteService.getPendingItems(projectId));
+    }
+
+    @GetMapping("/excluded-items")
+    public ResponseEntity<List<PendingItemResponse>> getExcludedItems(
+            @RequestParam String projectId) {
+        return ResponseEntity.ok(patchNoteService.getExcludedItems(projectId));
+    }
+
+    @DeleteMapping("/pending-items/{id}")
+    public ResponseEntity<Void> excludeItem(
+            @PathVariable Long id, @RequestParam String projectId) {
+        patchNoteService.excludeItem(id, projectId);
+        return ResponseEntity.ok().build();
+    }
+
+    @DeleteMapping("/excluded-items/{id}")
+    public ResponseEntity<Void> restoreItem(
+            @PathVariable Long id, @RequestParam String projectId) {
+        patchNoteService.restoreItem(id, projectId);
+        return ResponseEntity.ok().build();
     }
 }

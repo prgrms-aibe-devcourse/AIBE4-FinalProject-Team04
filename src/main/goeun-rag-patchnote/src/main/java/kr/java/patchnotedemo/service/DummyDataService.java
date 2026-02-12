@@ -3,6 +3,7 @@ package kr.java.patchnotedemo.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.transaction.Transactional;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -16,9 +17,11 @@ import kr.java.patchnotedemo.enums.IssuePriority;
 import kr.java.patchnotedemo.enums.IssueStatus;
 import kr.java.patchnotedemo.enums.IssueType;
 import kr.java.patchnotedemo.enums.SourceType;
+import kr.java.patchnotedemo.event.SourceDataSavedEvent;
 import kr.java.patchnotedemo.repository.DocumentRepository;
 import kr.java.patchnotedemo.repository.IssueRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.transformer.splitter.TokenTextSplitter;
 import org.springframework.ai.vectorstore.VectorStore;
@@ -26,10 +29,12 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StreamUtils;
 
 @Service
 @RequiredArgsConstructor
 @Transactional
+@Slf4j
 public class DummyDataService {
 
     private final ChatClient chatClient;
@@ -70,25 +75,29 @@ public class DummyDataService {
         }
     }
 
+    private String loadPromptTemplate(Resource resource) {
+        try {
+            return StreamUtils.copyToString(resource.getInputStream(), StandardCharsets.UTF_8);
+        } catch (Exception e) {
+            log.error("Failed to load prompt template", e);
+            return "";
+        }
+    }
+
     private void createDummyDocument(String projectId) {
         String topic = DOC_TOPICS.get(random.nextInt(DOC_TOPICS.size()));
         String genre = "MMORPG";
         String gameName = "레전드 오브 스프링";
         String role = "10년차 시니어 기획자";
 
-        String generatedContent =
-                chatClient
-                        .prompt()
-                        .user(
-                                userSpec ->
-                                        userSpec.text(dummyDocPromptResource) // 리소스 파일 주입
-                                                .param("genre", genre) // {genre} 치환
-                                                .param("gameName", gameName) // {gameName} 치환
-                                                .param("role", role) // {role} 치환
-                                                .param("topic", topic) // {topic} 치환
-                                )
-                        .call()
-                        .content();
+        String template = loadPromptTemplate(dummyDocPromptResource);
+        String promptText =
+                template.replace("{genre}", genre)
+                        .replace("{gameName}", gameName)
+                        .replace("{role}", role)
+                        .replace("{topic}", topic);
+
+        String generatedContent = chatClient.prompt().user(promptText).call().content();
 
         if (generatedContent == null) {
             generatedContent = "";
@@ -132,6 +141,10 @@ public class DummyDataService {
         }
 
         vectorStore.add(vectorDocs);
+
+        eventPublisher.publishEvent(
+                new SourceDataSavedEvent(
+                        savedId, SourceType.DOCUMENT, generatedContent, projectId));
     }
 
     private void createDummyIssue(String projectId) throws JsonProcessingException {
@@ -143,19 +156,15 @@ public class DummyDataService {
         String dept = DEPARTMENTS.get(random.nextInt(DEPARTMENTS.size()));
         String role = ROLES.get(random.nextInt(ROLES.size()));
 
-        String jsonResponse =
-                chatClient
-                        .prompt()
-                        .user(
-                                userSpec ->
-                                        userSpec.text(dummyIssuePromptResource)
-                                                .param("name", name)
-                                                .param("dept", dept)
-                                                .param("role", role)
-                                                .param("issueType", randomType.name())
-                                                .param("priority", randomPriority.name()))
-                        .call()
-                        .content();
+        String template = loadPromptTemplate(dummyIssuePromptResource);
+        String promptText =
+                template.replace("{name}", name)
+                        .replace("{dept}", dept)
+                        .replace("{role}", role)
+                        .replace("{issueType}", randomType.name())
+                        .replace("{priority}", randomPriority.name());
+
+        String jsonResponse = chatClient.prompt().user(promptText).call().content();
 
         if (jsonResponse == null) {
             jsonResponse = "{}";
@@ -208,5 +217,10 @@ public class DummyDataService {
 
         vectorStore.add(
                 List.of(new org.springframework.ai.document.Document(fullContent, metadata)));
+
+        // LLM에게 요약시킬 내용은 해결 방법 위주로 전달
+        String contentForSummary = "이슈 제목: " + dto.title() + "\n해결 내용: " + dto.resolutionNote();
+        eventPublisher.publishEvent(
+                new SourceDataSavedEvent(savedId, SourceType.ISSUE, contentForSummary, projectId));
     }
 }

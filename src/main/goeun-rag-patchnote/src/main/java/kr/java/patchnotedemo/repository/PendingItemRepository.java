@@ -1,6 +1,7 @@
 package kr.java.patchnotedemo.repository;
 
 import java.util.List;
+import java.util.Optional;
 import kr.java.patchnotedemo.entity.PendingItem;
 import kr.java.patchnotedemo.enums.PendingItemStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -10,6 +11,10 @@ import org.springframework.data.repository.query.Param;
 public interface PendingItemRepository extends JpaRepository<PendingItem, Long> {
 
     List<PendingItem> findByProjectIdAndStatus(String projectId, PendingItemStatus status);
+
+    List<PendingItem> findByProjectIdAndStatusNot(String projectId, PendingItemStatus status);
+
+    Optional<PendingItem> findByIdAndProjectId(Long id, String projectId);
 
     // 초성 검색 (pg_trgm 활용)
     @Query(
