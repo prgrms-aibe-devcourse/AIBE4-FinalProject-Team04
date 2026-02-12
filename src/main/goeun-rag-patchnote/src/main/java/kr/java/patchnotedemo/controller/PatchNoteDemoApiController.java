@@ -2,6 +2,7 @@ package kr.java.patchnotedemo.controller;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import java.util.List;
+import kr.java.patchnotedemo.dto.PendingItemResponse;
 import kr.java.patchnotedemo.entity.PendingItem;
 import kr.java.patchnotedemo.enums.PendingItemStatus;
 import kr.java.patchnotedemo.enums.SourceType;
@@ -23,7 +24,7 @@ public class PatchNoteDemoApiController {
     private final DummyDataService dummyDataService;
     private final PendingItemRepository pendingItemRepository;
 
-    @PostMapping("/generate")
+    @PostMapping("/dummy-data")
     public ResponseEntity<String> generateDummy(
             @RequestParam SourceType type, @RequestParam String projectId)
             throws JsonProcessingException {
@@ -33,10 +34,13 @@ public class PatchNoteDemoApiController {
     }
 
     @GetMapping("/pending-items")
-    public ResponseEntity<List<PendingItem>> getPendingItems(@RequestParam String projectId) {
+    public ResponseEntity<List<PendingItemResponse>> getPendingItems(@RequestParam String projectId) {
         // EXCLUDED가 아닌 것만 조회
         return ResponseEntity.ok(
                 pendingItemRepository.findByProjectIdAndStatus(
-                        projectId, PendingItemStatus.PENDING));
+                        projectId, PendingItemStatus.PENDING)
+                        .stream()
+                        .map(PendingItemResponse::from)
+                        .toList());
     }
 }

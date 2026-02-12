@@ -137,7 +137,7 @@ public class DummyDataService {
     private void createDummyIssue(String projectId) throws JsonProcessingException {
         IssueType randomType = IssueType.values()[random.nextInt(IssueType.values().length)];
         IssuePriority randomPriority =
-                IssuePriority.values()[random.nextInt(IssueType.values().length)];
+                IssuePriority.values()[random.nextInt(IssuePriority.values().length)];
 
         String name = NAMES.get(random.nextInt(NAMES.size()));
         String dept = DEPARTMENTS.get(random.nextInt(DEPARTMENTS.size()));
@@ -169,14 +169,14 @@ public class DummyDataService {
                         .projectId(projectId)
                         .title(dto.title())
                         .description(dto.description())
-                        .resolutionNote(dto.resolution_note())
+                        .resolutionNote(dto.resolutionNote())
                         .priority(randomPriority)
                         .assignee(name)
                         .issueType(randomType)
                         .status(IssueStatus.RESOLVED)
                         .build();
 
-        issue.resolve(dto.resolution_note());
+        issue.resolve(dto.resolutionNote());
 
         Long savedId = issueRepository.save(issue).getId();
 
@@ -198,7 +198,7 @@ public class DummyDataService {
                         randomPriority,
                         dto.title(),
                         dto.description(),
-                        dto.resolution_note());
+                        dto.resolutionNote());
 
         Map<String, Object> metadata = new HashMap<>();
         metadata.put("source_id", savedId);
