@@ -38,7 +38,7 @@ dependencies {
     testImplementation 'org.springframework.boot:spring-boot-starter-data-redis-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     // JSONB 매핑을 위한 유틸리티
-    implementation 'io.hypersistence:hypersistence-utils-hibernate-63:3.8.2'
+    implementation 'io.hypersistence:hypersistence-utils-hibernate-60:3.9.0'
 }
 
 tasks.named('test') {
