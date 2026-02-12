@@ -1,0 +1,39 @@
+services:
+  # 3. InfluxDB (k6 결과 저장)
+  influxdb:
+    image: influxdb:1.8
+    # k6 공식 대시보드 호환성을 위해 v1.8 버전을 사용
+    # v2.x는 설정이 복잡하여 초기 학습용으로는 v1.8 사용 권장
+    container_name: k6-influxdb
+    ports:
+      - "8086:8086"
+    environment:
+      - INFLUXDB_DB=k6
+    volumes:
+      - ./influxdb-data:/var/lib/influxdb
+
+  # 4. Grafana (시각화 도구)
+  grafana:
+    image: grafana/grafana:latest
+    container_name: k6-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - ./grafana-data:/var/lib/grafana
+    depends_on:
+      - influxdb
+
+  # 5. k6 (부하 테스트 실행기)
+  # 이 컨테이너는 'docker compose up' 할 때 바로 실행되지 않고,
+  # 우리가 필요할 때만 명령어로 실행하기 위해 설정만 해둠
+  k6:
+    image: grafana/k6:latest
+    container_name: log-k6
+    volumes:
+      - ./k6-scripts:/scripts # 로컬의 스크립트 폴더를 컨테이너랑 공유
+    # InfluxDB 주소를 환경변수로 등록해둠
+    environment:
+      - K6_OUT=influxdb=http://influxdb:8086/k6
