@@ -2,7 +2,8 @@ package kr.java.springbootworker.controller;
 
 import jakarta.validation.Valid;
 import kr.java.springbootworker.dto.request.RawLogRequest;
-import kr.java.springbootworker.service.LogService;
+import kr.java.springbootworker.service.LogBufferService;
+import kr.java.springbootworker.service.LogMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Profile;
 import org.springframework.validation.annotation.Validated;
@@ -20,14 +21,15 @@ import java.util.List;
 @Profile("!prod")
 public class LogApiController {
 
-    private final LogService logService;
+    private final LogBufferService logBufferService;
+    private final LogMapper logMapper;
 
     @PostMapping("/bulk")
     public String bulkInsert(@RequestBody List<@Valid RawLogRequest> logDtos) {
-        long startTime = System.currentTimeMillis();
-        logService.bulkInsert(logDtos);
-        long endTime = System.currentTimeMillis();
+        logDtos.forEach(dto -> {
+            logBufferService.add(logMapper.toEntity(dto));
+        });
         
-        return "Inserted " + logDtos.size() + " logs in " + (endTime - startTime) + "ms";
+        return "Accepted " + logDtos.size() + " logs.";
     }
 }

@@ -49,6 +49,11 @@ public class LogBufferService {
         }
     }
 
+    // API 요청용 (RecordId 없음)
+    public void add(Log logEntity) {
+        add(logEntity, null);
+    }
+
     public void add(Log logEntity, RecordId recordId) {
         if (buffer.size() >= maxBufferSize) {
             log.warn("Buffer is full (size: {}). Dropping log.", buffer.size());
@@ -88,10 +93,17 @@ public class LogBufferService {
             try {
                 logJdbcRepository.saveAll(logs);
                 
-                List<RecordId> recordIds = wrappersToSave.stream().map(LogWrapper::recordId).collect(Collectors.toList());
-                redisTemplate.opsForStream().acknowledge(streamKey, consumerGroup, recordIds.toArray(new RecordId[0]));
+                // RecordId가 있는 경우에만 ACK 전송
+                List<RecordId> recordIds = wrappersToSave.stream()
+                        .map(LogWrapper::recordId)
+                        .filter(id -> id != null)
+                        .collect(Collectors.toList());
                 
-                log.info("Flushed {} logs to DB and acknowledged", logs.size());
+                if (!recordIds.isEmpty()) {
+                    redisTemplate.opsForStream().acknowledge(streamKey, consumerGroup, recordIds.toArray(new RecordId[0]));
+                }
+                
+                log.info("Flushed {} logs to DB (ACK sent for {} items)", logs.size(), recordIds.size());
             } catch (Exception e) {
                 log.error("Failed to flush logs to DB", e);
             }
