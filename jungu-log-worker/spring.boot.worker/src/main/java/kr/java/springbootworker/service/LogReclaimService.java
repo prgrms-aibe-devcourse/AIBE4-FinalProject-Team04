@@ -8,6 +8,7 @@ import org.springframework.data.domain.Range;
 import org.springframework.data.redis.connection.stream.Consumer;
 import org.springframework.data.redis.connection.stream.MapRecord;
 import org.springframework.data.redis.connection.stream.PendingMessages;
+import org.springframework.data.redis.connection.stream.RecordId;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StreamOperations;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -67,7 +68,7 @@ public class LogReclaimService {
                     consumerGroup,
                     consumerName,
                     Duration.ofMillis(10000),
-                    idsToClaim.stream().map(org.springframework.data.redis.connection.stream.RecordId::of).collect(Collectors.toList())
+                    idsToClaim.stream().map(RecordId::of).toArray(RecordId[]::new)
             );
 
             for (MapRecord<String, String, String> message : claimedMessages) {

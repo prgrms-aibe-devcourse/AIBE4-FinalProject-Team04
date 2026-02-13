@@ -49,13 +49,13 @@ public class LogBufferService {
         }
     }
 
-    public void add(Log log, RecordId recordId) {
+    public void add(Log logEntity, RecordId recordId) {
         if (buffer.size() >= maxBufferSize) {
             log.warn("Buffer is full (size: {}). Dropping log.", buffer.size());
             return; 
         }
         
-        buffer.offer(new LogWrapper(log, recordId));
+        buffer.offer(new LogWrapper(logEntity, recordId));
         if (buffer.size() >= batchSize) {
             flush();
         }
