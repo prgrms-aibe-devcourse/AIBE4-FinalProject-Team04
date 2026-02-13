@@ -2,6 +2,7 @@ package kr.java.springbootworker.repository;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.annotation.PostConstruct;
 import kr.java.springbootworker.domain.entity.logs.Log;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -23,6 +24,13 @@ public class LogJdbcRepository {
 
     @Value("${worker.jdbc.batch-size:1000}")
     private int batchSize;
+
+    @PostConstruct
+    public void init() {
+        if (batchSize <= 0) {
+            batchSize = 1000;
+        }
+    }
 
     @Transactional
     public void saveAll(List<Log> logs) {
