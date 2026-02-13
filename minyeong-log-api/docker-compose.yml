@@ -75,6 +75,8 @@ services:
       - REDIS_ADDR=redis://${API_PRIVATE_IP}:6379 # API 서버의 Redis 주소
     ports:
       - "9121:9121"
+    depends_on:
+      - redis
 
   # 데이터 수집기 (Prometheus)
   prometheus:
