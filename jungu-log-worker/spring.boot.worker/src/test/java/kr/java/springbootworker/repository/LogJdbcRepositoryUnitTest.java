@@ -2,6 +2,7 @@ package kr.java.springbootworker.repository;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import kr.java.springbootworker.domain.entity.logs.Log;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -10,6 +11,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.core.BatchPreparedStatementSetter;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Collections;
 import java.util.List;
@@ -30,6 +32,11 @@ class LogJdbcRepositoryUnitTest {
 
     @InjectMocks
     private LogJdbcRepository logJdbcRepository;
+
+    @BeforeEach
+    void setUp() {
+        ReflectionTestUtils.setField(logJdbcRepository, "batchSize", 1000);
+    }
 
     @Test
     @DisplayName("saveAll 호출 시 batchUpdate가 실행되어야 한다")

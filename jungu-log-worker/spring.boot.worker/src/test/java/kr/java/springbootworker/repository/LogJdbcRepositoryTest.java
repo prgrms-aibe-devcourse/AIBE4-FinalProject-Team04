@@ -40,8 +40,12 @@ class LogJdbcRepositoryTest {
 
     @BeforeEach
     void setUp() {
-        jdbcTemplate.execute("CREATE TABLE IF NOT EXISTS log (" +
-                "log_id UUID PRIMARY KEY, " +
+        // 기존 테이블 삭제 (테스트 반복 실행을 위해)
+        jdbcTemplate.execute("DROP TABLE IF EXISTS log CASCADE");
+
+        // 파티셔닝 테이블 생성
+        jdbcTemplate.execute("CREATE TABLE log (" +
+                "log_id UUID, " +
                 "project_id VARCHAR(255) NOT NULL, " +
                 "session_id VARCHAR(255) NOT NULL, " +
                 "user_id VARCHAR(255), " +
@@ -53,15 +57,16 @@ class LogJdbcRepositoryTest {
                 "span_id VARCHAR(255), " +
                 "fingerprint VARCHAR(255), " +
                 "resource JSONB NOT NULL, " +
-                "attributes JSONB NOT NULL" +
-                ")");
+                "attributes JSONB NOT NULL, " +
+                "PRIMARY KEY (log_id, occurred_at)" + 
+                ") PARTITION BY RANGE (occurred_at)");
         
-        // 테스트 전 데이터 초기화 (선택 사항)
-        jdbcTemplate.execute("TRUNCATE TABLE log");
+        // 파티션 생성 (테스트용 Default 파티션)
+        jdbcTemplate.execute("CREATE TABLE log_default PARTITION OF log DEFAULT");
     }
 
     @Test
-    @DisplayName("Bulk Insert 동작 테스트")
+    @DisplayName("Bulk Insert 동작 및 파티셔닝 테스트")
     void bulkInsertTest() {
         // given
         int dataSize = 100;
@@ -94,7 +99,12 @@ class LogJdbcRepositoryTest {
         logJdbcRepository.saveAll(logs);
 
         // then
+        // 메인 테이블 조회
         Integer count = jdbcTemplate.queryForObject("SELECT count(*) FROM log", Integer.class);
         assertThat(count).isEqualTo(dataSize);
+
+        // 파티션 테이블 직접 조회 (데이터가 실제로 파티션으로 들어갔는지 확인)
+        Integer partitionCount = jdbcTemplate.queryForObject("SELECT count(*) FROM log_default", Integer.class);
+        assertThat(partitionCount).isEqualTo(dataSize);
     }
 }
