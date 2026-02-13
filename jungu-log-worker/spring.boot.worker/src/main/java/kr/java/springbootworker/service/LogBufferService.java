@@ -4,11 +4,13 @@ import kr.java.springbootworker.domain.entity.logs.Log;
 import kr.java.springbootworker.repository.LogJdbcRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 @Slf4j
 @Service
@@ -16,29 +18,43 @@ import java.util.List;
 public class LogBufferService {
 
     private final LogJdbcRepository logJdbcRepository;
-    private final List<Log> buffer = new ArrayList<>();
-    private static final int BATCH_SIZE = 1000;
+    private final ConcurrentLinkedQueue<Log> buffer = new ConcurrentLinkedQueue<>();
 
-    public synchronized void add(Log log) {
-        buffer.add(log);
-        if (buffer.size() >= BATCH_SIZE) {
+    @Value("${worker.bulk.size:1000}")
+    private int batchSize;
+
+    public void add(Log log) {
+        buffer.offer(log);
+        if (buffer.size() >= batchSize) {
             flush();
         }
     }
 
-    @Scheduled(fixedDelay = 1000) // 1초마다 실행
+    @Scheduled(fixedDelayString = "${worker.bulk.flush-interval-ms:1000}")
     public synchronized void flush() {
         if (buffer.isEmpty()) {
             return;
         }
+
+        List<Log> logsToSave = new ArrayList<>();
+        Log logItem;
+        // 큐에서 데이터를 꺼내서 임시 리스트에 담음 (최대 batchSize만큼)
+        while ((logItem = buffer.poll()) != null) {
+            logsToSave.add(logItem);
+            if (logsToSave.size() >= batchSize) {
+                break;
+            }
+        }
+
+        if (logsToSave.isEmpty()) {
+            return;
+        }
         
         try {
-            logJdbcRepository.saveAll(buffer);
-            log.info("Flushed {} logs to DB", buffer.size());
-            buffer.clear();
+            logJdbcRepository.saveAll(logsToSave);
+            log.info("Flushed {} logs to DB", logsToSave.size());
         } catch (Exception e) {
             log.error("Failed to flush logs to DB", e);
-            // 실패 시 재시도 로직이나 DLQ 처리 필요하지만 여기서는 생략
         }
     }
 }
