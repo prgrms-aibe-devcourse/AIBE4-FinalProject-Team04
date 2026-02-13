@@ -8,10 +8,11 @@
 
 [지시사항]
 위 페르소나와 이슈 속성에 맞춰 구체적이고 기술적인 내용이 담긴 이슈 리포트를 작성해주세요.
-- SECURITY라면 보안 취약점(SQL Injection, 어뷰징 등)을 다루세요.
-- BALANCING이라면 특정 캐릭터나 아이템의 수치 조정(너프/버프)을 다루세요.
-- BUG_FIX라면 구체적인 에러 상황과 디버깅 과정을 포함하세요.
-- description과 resolution_note는 핵심 위주로 작성해서 응답이 공백 포함 1000자 이내가 되도록 작성하세요.
+- SECURITY: SQL Injection, XSS, 어뷰징 등 보안 취약점
+- BALANCING: 캐릭터 스킬 계수 조정, 아이템 드랍률 수정
+- BUG_FIX: NullPointException, 트랜잭션 롤백 실패 등 구체적 에러
+- IMPROVEMENT: UI/UX 개선, 로딩 속도 최적화
+- FEATURE: 신규 기능 구현
 
 [출력 포맷]
 반드시 아래 JSON 형식으로만 응답하세요. (마크다운 코드블럭 없이 순수 텍스트로)

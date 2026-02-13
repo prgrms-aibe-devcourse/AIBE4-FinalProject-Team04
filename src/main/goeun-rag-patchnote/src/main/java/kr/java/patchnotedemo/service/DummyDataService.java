@@ -3,13 +3,12 @@ package kr.java.patchnotedemo.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.transaction.Transactional;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 import java.util.UUID;
+import kr.java.patchnotedemo.constant.MetadataKeys;
 import kr.java.patchnotedemo.dto.IssueDummyResponse;
 import kr.java.patchnotedemo.entity.Document;
 import kr.java.patchnotedemo.entity.Issue;
@@ -20,6 +19,7 @@ import kr.java.patchnotedemo.enums.SourceType;
 import kr.java.patchnotedemo.event.SourceDataSavedEvent;
 import kr.java.patchnotedemo.repository.DocumentRepository;
 import kr.java.patchnotedemo.repository.IssueRepository;
+import kr.java.patchnotedemo.util.PromptUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
@@ -29,7 +29,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StreamUtils;
 
 @Service
 @RequiredArgsConstructor
@@ -43,22 +42,23 @@ public class DummyDataService {
     private final VectorStore vectorStore;
     private final ApplicationEventPublisher eventPublisher;
     private final ObjectMapper objectMapper;
-    private final Random random = new Random();
-    private final List<String> DOC_TOPICS =
+
+    private final List<String> DOC_TYPES =
             List.of(
-                    "신규 레이드 던전 '얼어붙은 왕좌' 기획서",
-                    "길드 대항전 PvP 밸런스 조정안",
-                    "서버 아키텍처 MSA 전환 설계서",
-                    "여름방학 이벤트 '해변의 수호자' 상세 기획",
-                    "신규 캐릭터 '그림자 암살자' 스킬 명세서",
-                    "시즌 패스 '여명의 기사단' 보상 구조 및 BM 설계서",
-                    "신규 필드 '가시나무 숲' 몬스터 배치 및 드랍 테이블 상세",
-                    "길드 하우징 시스템 건축 및 상호작용 기획안",
-                    "클라이언트 메모리 최적화 및 텍스처 로딩 속도 개선 리포트",
-                    "메인 시나리오 챕터 12 '타락한 신전' 스크립트 및 컷신 연출안");
+                    "게임 기획서(GDD)",
+                    "레벨/밸런스 설계서",
+                    "시나리오",
+                    "API 명세서",
+                    "시스템 아키텍처",
+                    "DB 스키마",
+                    "인프라 구성도",
+                    "UI/UX 기획서",
+                    "디자인 가이드",
+                    "와이어프레임");
     private final List<String> NAMES = List.of("김철수", "이영희", "박민수", "최지우", "정재석", "강하늘");
-    private final List<String> DEPARTMENTS = List.of("서버팀", "클라이언트팀", "기획팀", "QA팀", "보안팀", "엔진팀");
-    private final List<String> ROLES = List.of("팀장", "시니어", "주니어", "파트장", "인턴");
+    private final List<String> DEPARTMENTS =
+            List.of("기획팀", "기획팀", "시나리오팀", "서버팀", "서버팀", "서버팀", "인프라팀", "디자인팀", "디자인팀", "디자인팀");
+    private final List<String> ROLES = List.of("팀장", "시니어", "주니어", "파트장", "인턴", "시니어");
 
     @Value("classpath:prompts/dummy-doc.st")
     private Resource dummyDocPromptResource;
@@ -68,34 +68,63 @@ public class DummyDataService {
 
     @Transactional
     public void generateDummy(SourceType type, String projectId) throws JsonProcessingException {
-        if (type == SourceType.DOCUMENT) {
-            createDummyDocument(projectId);
-        } else {
-            createDummyIssue(projectId);
+
+        int batchSize = 10;
+
+        for (int i = 0; i < batchSize; i++) {
+            try {
+                log.info("데이터 생성 시작 [{}/{}]...", i + 1, batchSize);
+                if (type == SourceType.DOCUMENT) {
+                    createDummyDocument(projectId, i);
+                } else {
+                    createDummyIssue(projectId, i);
+                }
+
+                // 무료 티어 제한(RPM)을 피하기 위해 4초 휴식
+                // 20 RPM = 1분에 20개 = 3초에 1개 허용
+                Thread.sleep(4000);
+
+            } catch (org.springframework.ai.retry.NonTransientAiException e) {
+                // 429 에러 발생 시 처리
+                if (e.getMessage().contains("429")) {
+                    log.warn("⚠️ API 쿼터 초과 (429)! 40초간 대기 후 재시도합니다... (인덱스: {})", i);
+                    try {
+                        // 에러 메시지에서 32초 대기하라고 했으므로 넉넉히 40초 대기
+                        Thread.sleep(40000);
+
+                        // 현재 인덱스(i)를 다시 시도하기 위해 i를 1 줄임
+                        i--;
+                        continue;
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                    }
+                } else {
+                    log.error("생성 실패 (Index: " + i + ")", e);
+                }
+            } catch (Exception e) {
+                // 하나 실패해도 나머지는 계속 진행하도록 예외 처리
+                log.error("Failed to generate dummy data index: " + i, e);
+            }
         }
     }
 
-    private String loadPromptTemplate(Resource resource) {
-        try {
-            return StreamUtils.copyToString(resource.getInputStream(), StandardCharsets.UTF_8);
-        } catch (Exception e) {
-            log.error("Failed to load prompt template", e);
-            return "";
-        }
-    }
+    private void createDummyDocument(String projectId, int index) {
+        String docType = DOC_TYPES.get(index % DOC_TYPES.size());
+        String name = NAMES.get(index % NAMES.size());
+        String dept = DEPARTMENTS.get(index % DEPARTMENTS.size());
+        String role = ROLES.get(index % ROLES.size());
 
-    private void createDummyDocument(String projectId) {
-        String topic = DOC_TOPICS.get(random.nextInt(DOC_TOPICS.size()));
         String genre = "MMORPG";
         String gameName = "레전드 오브 스프링";
-        String role = "10년차 시니어 기획자";
 
-        String template = loadPromptTemplate(dummyDocPromptResource);
+        String template = PromptUtils.loadTemplate(dummyDocPromptResource);
         String promptText =
                 template.replace("{genre}", genre)
                         .replace("{gameName}", gameName)
+                        .replace("{author}", name)
+                        .replace("{dept}", dept)
                         .replace("{role}", role)
-                        .replace("{topic}", topic);
+                        .replace("{docType}", docType);
 
         String generatedContent = chatClient.prompt().user(promptText).call().content();
 
@@ -106,10 +135,10 @@ public class DummyDataService {
         Document doc =
                 Document.builder()
                         .projectId(projectId)
-                        .title(topic)
-                        .author("AI")
-                        .version("v1.0.0")
-                        .category("기획서")
+                        .title("[" + docType + "] " + gameName + " v1." + index + ".0")
+                        .author(name)
+                        .version("v1." + index + ".0")
+                        .category(docType)
                         .fileUrl("http://dummy-s3/docs/" + UUID.randomUUID())
                         .fileType("PDF")
                         .isProcessed(true)
@@ -117,55 +146,39 @@ public class DummyDataService {
 
         Long savedId = documentRepository.save(doc).getId();
 
-        TokenTextSplitter splitter = new TokenTextSplitter(1000, 400, 10, 10000, true);
-        // (참고: 청킹 사이즈는 모델에 따라 조절. Gemini는 문맥이 기니까 1000 정도도 괜찮음)
+        Map<String, Object> docMetadata = new HashMap<>();
+        docMetadata.put(MetadataKeys.CATEGORY, docType);
+        docMetadata.put(MetadataKeys.DOC_VERSION, "v1." + index + ".0");
 
-        List<String> chunks =
-                splitter
-                        .apply(
-                                List.of(
-                                        new org.springframework.ai.document.Document(
-                                                generatedContent)))
-                        .stream()
-                        .map(org.springframework.ai.document.Document::getText)
-                        .toList();
-        List<org.springframework.ai.document.Document> vectorDocs = new ArrayList<>();
-
-        for (String chunk : chunks) {
-            Map<String, Object> metadata = new HashMap<>();
-            metadata.put("source_id", savedId);
-            metadata.put("source_type", SourceType.DOCUMENT.name());
-            metadata.put("project_id", projectId);
-
-            vectorDocs.add(new org.springframework.ai.document.Document(chunk, metadata));
-        }
-
-        vectorStore.add(vectorDocs);
+        saveToVectorStore(savedId, SourceType.DOCUMENT, projectId, generatedContent, docMetadata);
 
         eventPublisher.publishEvent(
                 new SourceDataSavedEvent(
                         savedId, SourceType.DOCUMENT, generatedContent, projectId));
+
+        log.info("Generated Document [{}/10]: {}", index + 1, docType);
     }
 
-    private void createDummyIssue(String projectId) throws JsonProcessingException {
-        IssueType randomType = IssueType.values()[random.nextInt(IssueType.values().length)];
-        IssuePriority randomPriority =
-                IssuePriority.values()[random.nextInt(IssuePriority.values().length)];
+    private void createDummyIssue(String projectId, int index) throws JsonProcessingException {
+        IssueType[] randomTypes = IssueType.values();
+        IssuePriority[] randomPrioritys = IssuePriority.values();
 
-        String name = NAMES.get(random.nextInt(NAMES.size()));
-        String dept = DEPARTMENTS.get(random.nextInt(DEPARTMENTS.size()));
-        String role = ROLES.get(random.nextInt(ROLES.size()));
+        IssueType issueType = randomTypes[index % randomTypes.length];
+        IssuePriority issuePriority = randomPrioritys[index % randomPrioritys.length];
 
-        String template = loadPromptTemplate(dummyIssuePromptResource);
+        String name = NAMES.get(index % NAMES.size());
+        String dept = DEPARTMENTS.get(index % DEPARTMENTS.size());
+        String role = ROLES.get(index % ROLES.size());
+
+        String template = PromptUtils.loadTemplate(dummyIssuePromptResource);
         String promptText =
                 template.replace("{name}", name)
                         .replace("{dept}", dept)
                         .replace("{role}", role)
-                        .replace("{issueType}", randomType.name())
-                        .replace("{priority}", randomPriority.name());
+                        .replace("{issueType}", issueType.name())
+                        .replace("{priority}", issuePriority.name());
 
         String jsonResponse = chatClient.prompt().user(promptText).call().content();
-
         if (jsonResponse == null) {
             jsonResponse = "{}";
         }
@@ -179,9 +192,9 @@ public class DummyDataService {
                         .title(dto.title())
                         .description(dto.description())
                         .resolutionNote(dto.resolutionNote())
-                        .priority(randomPriority)
+                        .priority(issuePriority)
                         .assignee(name)
-                        .issueType(randomType)
+                        .issueType(issueType)
                         .status(IssueStatus.RESOLVED)
                         .build();
 
@@ -200,27 +213,58 @@ public class DummyDataService {
                 내용: %s
                 해결: %s
                 """,
-                        randomType,
+                        issueType,
                         name,
                         dept,
                         role,
-                        randomPriority,
+                        issuePriority,
                         dto.title(),
                         dto.description(),
                         dto.resolutionNote());
 
-        Map<String, Object> metadata = new HashMap<>();
-        metadata.put("source_id", savedId);
-        metadata.put("source_type", SourceType.ISSUE.name());
-        metadata.put("project_id", projectId);
-        metadata.put("issue_type", randomType.name());
+        Map<String, Object> issueMetadata = new HashMap<>();
+        issueMetadata.put(MetadataKeys.CATEGORY, issueType.name());
+        issueMetadata.put(MetadataKeys.ISSUE_PRIORITY, issuePriority.name());
+        issueMetadata.put(MetadataKeys.AUTHOR_ID, name);
 
-        vectorStore.add(
-                List.of(new org.springframework.ai.document.Document(fullContent, metadata)));
+        saveToVectorStore(savedId, SourceType.ISSUE, projectId, fullContent, issueMetadata);
 
-        // LLM에게 요약시킬 내용은 해결 방법 위주로 전달
         String contentForSummary = "이슈 제목: " + dto.title() + "\n해결 내용: " + dto.resolutionNote();
         eventPublisher.publishEvent(
                 new SourceDataSavedEvent(savedId, SourceType.ISSUE, contentForSummary, projectId));
+    }
+
+    private void saveToVectorStore(
+            Long sourceId,
+            SourceType type,
+            String projectId,
+            String content,
+            Map<String, Object> specificMetadata) {
+        TokenTextSplitter splitter = new TokenTextSplitter(1000, 400, 10, 10000, true);
+
+        List<String> chunks =
+                splitter
+                        .apply(List.of(new org.springframework.ai.document.Document(content)))
+                        .stream()
+                        .map(org.springframework.ai.document.Document::getText)
+                        .toList();
+
+        List<org.springframework.ai.document.Document> vectorDocs = new ArrayList<>();
+
+        for (String chunk : chunks) {
+            Map<String, Object> metadata = new HashMap<>();
+            metadata.put(MetadataKeys.SOURCE_ID, sourceId);
+            metadata.put(MetadataKeys.SOURCE_TYPE, type.name());
+            metadata.put(MetadataKeys.PROJECT_ID, projectId);
+
+            if (specificMetadata != null && !specificMetadata.isEmpty()) {
+                metadata.putAll(specificMetadata);
+            }
+
+            vectorDocs.add(new org.springframework.ai.document.Document(chunk, metadata));
+        }
+
+        vectorStore.add(vectorDocs);
+        log.info("Saved {} vector chunks. Source: {}-{}", vectorDocs.size(), type, sourceId);
     }
 }
