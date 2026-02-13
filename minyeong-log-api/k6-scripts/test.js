@@ -14,10 +14,8 @@ export const options = {
 const BASE_URL = __ENV.BASE_URL || 'http://api:8080';
 
 export default function () {
-    // 1. API 호출 (Docker 내부 통신이므로 서비스명 'api' 사용 가능하지만,
-    // 로컬 테스트의 확실함을 위해 host.docker.internal 또는 내부 IP 사용 권장.
-    // 여기서는 Docker Compose 네트워크 내부 DNS인 'api'를 사용)
-    const url = 'http://api:8080/api/logs';
+    // 1. API 호출
+    const url = `${BASE_URL}/api/logs`;
 
     // 2. 보낼 데이터 (JSON)
     const payload = JSON.stringify({
@@ -35,7 +33,12 @@ export default function () {
     // 3. POST 요청 전송
     const res = http.post(url, payload, params);
 
-    // 4. 응답 확인 (200 OK가 왔는지?)
+    // 4. 응답 실패 시 터미널에 에러 메시지 출력 (디버깅용)
+    if (res.status !== 200) {
+        console.log(`Error: Status ${res.status}, Body: ${res.body}`);
+    }
+
+    // 5. 응답 확인
     check(res, {
         'is status 200': (r) => r.status === 200,
     });
