@@ -1,4 +1,4 @@
-package kr.java.patchnote_demo.enums;
+package kr.java.patchnotedemo.enums;
 
 public enum PatchNoteStatus {
     DRAFT,

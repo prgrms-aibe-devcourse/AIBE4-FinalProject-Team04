@@ -1,4 +1,4 @@
-package kr.java.patchnote_demo.entity;
+package kr.java.patchnotedemo.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.EntityListeners;
