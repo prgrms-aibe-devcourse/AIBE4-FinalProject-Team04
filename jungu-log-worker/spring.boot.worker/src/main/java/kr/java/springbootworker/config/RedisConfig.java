@@ -44,10 +44,12 @@ public class RedisConfig {
                 StreamMessageListenerContainer.create(factory, options);
 
         try {
-            // 그룹이 없으면 생성 시도 (선택 사항)
-             factory.getConnection().streamCommands().xGroupCreate(streamKey.getBytes(), consumerGroup, ReadOffset.from("0-0"), true);
+            factory.getConnection().streamCommands().xGroupCreate(streamKey.getBytes(), consumerGroup, ReadOffset.from("0-0"), true);
         } catch (Exception e) {
-            // 이미 존재하면 무시
+            // "already exists" 에러는 정상적인 상황이므로 무시. 그 외의 에러는 로깅.
+            if (e.getMessage() != null && !e.getMessage().contains("BUSYGROUP")) {
+                log.error("Failed to create Redis Stream consumer group", e);
+            }
         }
 
         Subscription subscription = listenerContainer.receive(
