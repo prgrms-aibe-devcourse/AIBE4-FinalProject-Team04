@@ -42,3 +42,6 @@ dummy_data/
 *-dev.yml
 
 *.py
+
+### Secrets ###
+.env
