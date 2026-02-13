@@ -14,7 +14,7 @@ services:
       - SPRING_DATA_REDIS_PORT=6379
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/logdb
       - SPRING_DATASOURCE_USERNAME=postgres
-      - SPRING_DATASOURCE_PASSWORD=postgres
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
     depends_on:
       - redis # Redis가 먼저 켜져야 API가 켜짐
       - postgres
@@ -53,7 +53,7 @@ services:
       - "3000:3000"
     environment:
       - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
     volumes:
       - ./grafana-data:/var/lib/grafana
     depends_on:
@@ -79,7 +79,7 @@ services:
       - "5432:5432"
     environment:
       - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_DB=logdb
     volumes:
       - ./postgres-data:/var/lib/postgresql/data

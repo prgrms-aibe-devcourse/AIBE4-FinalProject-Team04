@@ -5,12 +5,15 @@ import kr.java.springbootworker.repository.LogJdbcRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.connection.stream.RecordId;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -18,13 +21,20 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 public class LogBufferService {
 
     private final LogJdbcRepository logJdbcRepository;
-    private final ConcurrentLinkedQueue<Log> buffer = new ConcurrentLinkedQueue<>();
+    private final RedisTemplate<String, String> redisTemplate;
+    private final ConcurrentLinkedQueue<LogWrapper> buffer = new ConcurrentLinkedQueue<>();
 
     @Value("${worker.bulk.size:1000}")
     private int batchSize;
 
-    public void add(Log log) {
-        buffer.offer(log);
+    @Value("${redis.stream.key:log-stream}")
+    private String streamKey;
+
+    @Value("${redis.stream.group:log-group}")
+    private String consumerGroup;
+
+    public void add(Log log, RecordId recordId) {
+        buffer.offer(new LogWrapper(log, recordId));
         if (buffer.size() >= batchSize) {
             flush();
         }
@@ -36,25 +46,34 @@ public class LogBufferService {
             return;
         }
 
-        List<Log> logsToSave = new ArrayList<>();
-        Log logItem;
-        // 큐에서 데이터를 꺼내서 임시 리스트에 담음 (최대 batchSize만큼)
-        while ((logItem = buffer.poll()) != null) {
-            logsToSave.add(logItem);
-            if (logsToSave.size() >= batchSize) {
+        List<LogWrapper> wrappersToSave = new ArrayList<>();
+        LogWrapper wrapper;
+        while ((wrapper = buffer.poll()) != null) {
+            wrappersToSave.add(wrapper);
+            if (wrappersToSave.size() >= batchSize) {
                 break;
             }
         }
 
-        if (logsToSave.isEmpty()) {
+        if (wrappersToSave.isEmpty()) {
             return;
         }
+
+        List<Log> logs = wrappersToSave.stream().map(LogWrapper::log).collect(Collectors.toList());
         
         try {
-            logJdbcRepository.saveAll(logsToSave);
-            log.info("Flushed {} logs to DB", logsToSave.size());
+            logJdbcRepository.saveAll(logs);
+            
+            // DB 저장 성공 시 ACK 전송
+            List<RecordId> recordIds = wrappersToSave.stream().map(LogWrapper::recordId).collect(Collectors.toList());
+            redisTemplate.opsForStream().acknowledge(streamKey, consumerGroup, recordIds.toArray(new RecordId[0]));
+            
+            log.info("Flushed {} logs to DB and acknowledged", logs.size());
         } catch (Exception e) {
             log.error("Failed to flush logs to DB", e);
+            // 실패 시 재시도 로직 필요 (여기서는 생략)
         }
     }
+
+    public record LogWrapper(Log log, RecordId recordId) {}
 }

@@ -1,6 +1,7 @@
 package kr.java.springbootworker.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import kr.java.springbootworker.domain.entity.logs.Log;
 import lombok.RequiredArgsConstructor;
@@ -27,7 +28,7 @@ public class LogStreamListener implements StreamListener<String, MapRecord<Strin
         
         try {
             Log logEntity = convertToLog(value);
-            logBufferService.add(logEntity);
+            logBufferService.add(logEntity, message.getId());
         } catch (Exception e) {
             log.error("Failed to convert message to Log entity: {}", value, e);
         }
@@ -46,8 +47,8 @@ public class LogStreamListener implements StreamListener<String, MapRecord<Strin
                 .traceId(map.get("traceId"))
                 .spanId(map.get("spanId"))
                 .fingerprint(map.get("fingerprint"))
-                .resource(objectMapper.readValue(map.get("resource"), Map.class))
-                .attributes(objectMapper.readValue(map.get("attributes"), Map.class))
+                .resource(objectMapper.readValue(map.get("resource"), new TypeReference<Map<String, Object>>() {}))
+                .attributes(objectMapper.readValue(map.get("attributes"), new TypeReference<Map<String, Object>>() {}))
                 .build();
     }
 }
