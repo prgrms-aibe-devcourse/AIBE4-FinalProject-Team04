@@ -1,5 +1,8 @@
 package kr.java.patchnotedemo.constant;
 
+import lombok.experimental.UtilityClass;
+
+@UtilityClass
 public class MetadataKeys {
     // 공통 필드
     public static final String PROJECT_ID = "project_id";

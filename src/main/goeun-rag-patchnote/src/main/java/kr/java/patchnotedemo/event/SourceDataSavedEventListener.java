@@ -90,7 +90,7 @@ public class SourceDataSavedEventListener {
 
     private <T> T extractMetadata(Resource promptResource, String content, Class<T> responseType)
             throws JsonProcessingException {
-        String template = PromptUtils.loadTemplate(promptResource);
+        String template = PromptUtils.loadPrompt(promptResource);
         if (template == null || template.isBlank()) {
             throw new IllegalStateException(
                     "Prompt template is empty: " + promptResource.getDescription());

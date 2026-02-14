@@ -2,6 +2,7 @@ package kr.java.patchnotedemo.controller;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import java.util.List;
+import kr.java.patchnotedemo.dto.GenearateDraftResponse;
 import kr.java.patchnotedemo.dto.GenerateDraftRequest;
 import kr.java.patchnotedemo.dto.PendingItemResponse;
 import kr.java.patchnotedemo.enums.SourceType;
@@ -60,9 +61,9 @@ public class PatchNoteDemoApiController {
     }
 
     @PostMapping("/draft")
-    public ResponseEntity<String> generatePatchNoteDraft(
+    public ResponseEntity<GenearateDraftResponse> generatePatchNoteDraft(
             @RequestBody GenerateDraftRequest request) {
         String draft = patchNoteService.generatePatchNoteDraft(request);
-        return ResponseEntity.ok(draft);
+        return ResponseEntity.ok(new GenearateDraftResponse(draft));
     }
 }

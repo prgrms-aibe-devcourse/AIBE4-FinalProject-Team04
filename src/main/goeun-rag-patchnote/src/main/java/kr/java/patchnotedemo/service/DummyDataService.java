@@ -2,7 +2,6 @@ package kr.java.patchnotedemo.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import jakarta.transaction.Transactional;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -23,16 +22,17 @@ import kr.java.patchnotedemo.util.PromptUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.retry.NonTransientAiException;
 import org.springframework.ai.transformer.splitter.TokenTextSplitter;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
 @RequiredArgsConstructor
-@Transactional
 @Slf4j
 public class DummyDataService {
 
@@ -42,6 +42,7 @@ public class DummyDataService {
     private final VectorStore vectorStore;
     private final ApplicationEventPublisher eventPublisher;
     private final ObjectMapper objectMapper;
+    private final TransactionTemplate transactionTemplate;
 
     private final List<String> DOC_TYPES =
             List.of(
@@ -66,44 +67,39 @@ public class DummyDataService {
     @Value("classpath:prompts/dummy-issue.st")
     private Resource dummyIssuePromptResource;
 
-    @Transactional
     public void generateDummy(SourceType type, String projectId) throws JsonProcessingException {
-
         int batchSize = 10;
+        int maxRetries = 3;
 
         for (int i = 0; i < batchSize; i++) {
-            try {
-                log.info("데이터 생성 시작 [{}/{}]...", i + 1, batchSize);
-                if (type == SourceType.DOCUMENT) {
-                    createDummyDocument(projectId, i);
-                } else {
-                    createDummyIssue(projectId, i);
-                }
+            int retryCount = 0;
+            boolean success = false;
 
-                // 무료 티어 제한(RPM)을 피하기 위해 4초 휴식
-                // 20 RPM = 1분에 20개 = 3초에 1개 허용
-                Thread.sleep(4000);
-
-            } catch (org.springframework.ai.retry.NonTransientAiException e) {
-                // 429 에러 발생 시 처리
-                if (e.getMessage().contains("429")) {
-                    log.warn("⚠️ API 쿼터 초과 (429)! 40초간 대기 후 재시도합니다... (인덱스: {})", i);
-                    try {
-                        // 에러 메시지에서 32초 대기하라고 했으므로 넉넉히 40초 대기
-                        Thread.sleep(40000);
-
-                        // 현재 인덱스(i)를 다시 시도하기 위해 i를 1 줄임
-                        i--;
-                        continue;
-                    } catch (InterruptedException ie) {
-                        Thread.currentThread().interrupt();
+            while (!success && retryCount < maxRetries) {
+                try {
+                    log.info("데이터 생성 시도 [{}/{}], 재시도: {}", i + 1, batchSize, retryCount);
+                    if (type == SourceType.DOCUMENT) {
+                        createDummyDocument(projectId, i);
+                    } else {
+                        createDummyIssue(projectId, i);
                     }
-                } else {
-                    log.error("생성 실패 (Index: " + i + ")", e);
+                    // api 사용 시 무료 티어 제한(RPM)을 피하기 위해 4초 휴식
+                    // 20 RPM = 1분에 20개 = 3초에 1개 허용
+                    //Thread.sleep(4000);
+                    success = true; // 성공 시 루프 탈출
+                } catch (NonTransientAiException e) {
+                    if (e.getMessage().contains("429")) {
+                        log.warn("API 쿼터 초과 (429)! 40초 대기... (시도 {}/{})", retryCount + 1,
+                            maxRetries);
+                        retryCount++;
+                    } else {
+                        log.error("생성 실패 (Index: " + i + ")", e);
+                        break;
+                    }
+
+                } catch (Exception e) {
+                    log.error("아이템 생성 최종 실패 (Index: {}). 다음으로 넘어감.", i);
                 }
-            } catch (Exception e) {
-                // 하나 실패해도 나머지는 계속 진행하도록 예외 처리
-                log.error("Failed to generate dummy data index: " + i, e);
             }
         }
     }
@@ -117,7 +113,7 @@ public class DummyDataService {
         String genre = "MMORPG";
         String gameName = "레전드 오브 스프링";
 
-        String template = PromptUtils.loadTemplate(dummyDocPromptResource);
+        String template = PromptUtils.loadPrompt(dummyDocPromptResource);
         String promptText =
                 template.replace("{genre}", genre)
                         .replace("{gameName}", gameName)
@@ -127,34 +123,34 @@ public class DummyDataService {
                         .replace("{docType}", docType);
 
         String generatedContent = chatClient.prompt().user(promptText).call().content();
+        if (generatedContent == null) { generatedContent = "";}
 
-        if (generatedContent == null) {
-            generatedContent = "";
-        }
-
-        Document doc =
+        final String contentToSave = generatedContent;
+        transactionTemplate.executeWithoutResult(status -> {
+            Document doc =
                 Document.builder()
-                        .projectId(projectId)
-                        .title("[" + docType + "] " + gameName + " v1." + index + ".0")
-                        .author(name)
-                        .version("v1." + index + ".0")
-                        .category(docType)
-                        .fileUrl("http://dummy-s3/docs/" + UUID.randomUUID())
-                        .fileType("PDF")
-                        .isProcessed(true)
-                        .build();
+                    .projectId(projectId)
+                    .title("[" + docType + "] " + gameName + " v1." + index + ".0")
+                    .author(name)
+                    .version("v1." + index + ".0")
+                    .category(docType)
+                    .fileUrl("http://dummy-s3/docs/" + UUID.randomUUID())
+                    .fileType("PDF")
+                    .isProcessed(true)
+                    .build();
 
-        Long savedId = documentRepository.save(doc).getId();
+            Long savedId = documentRepository.save(doc).getId();
 
-        Map<String, Object> docMetadata = new HashMap<>();
-        docMetadata.put(MetadataKeys.CATEGORY, docType);
-        docMetadata.put(MetadataKeys.DOC_VERSION, "v1." + index + ".0");
+            Map<String, Object> docMetadata = new HashMap<>();
+            docMetadata.put(MetadataKeys.CATEGORY, docType);
+            docMetadata.put(MetadataKeys.DOC_VERSION, "v1." + index + ".0");
 
-        saveToVectorStore(savedId, SourceType.DOCUMENT, projectId, generatedContent, docMetadata);
+            saveToVectorStore(savedId, SourceType.DOCUMENT, projectId, contentToSave, docMetadata);
 
-        eventPublisher.publishEvent(
+            eventPublisher.publishEvent(
                 new SourceDataSavedEvent(
-                        savedId, SourceType.DOCUMENT, generatedContent, projectId));
+                    savedId, SourceType.DOCUMENT, contentToSave, projectId));
+        });
 
         log.info("Generated Document [{}/10]: {}", index + 1, docType);
     }
@@ -170,7 +166,7 @@ public class DummyDataService {
         String dept = DEPARTMENTS.get(index % DEPARTMENTS.size());
         String role = ROLES.get(index % ROLES.size());
 
-        String template = PromptUtils.loadTemplate(dummyIssuePromptResource);
+        String template = PromptUtils.loadPrompt(dummyIssuePromptResource);
         String promptText =
                 template.replace("{name}", name)
                         .replace("{dept}", dept)
@@ -179,59 +175,59 @@ public class DummyDataService {
                         .replace("{priority}", issuePriority.name());
 
         String jsonResponse = chatClient.prompt().user(promptText).call().content();
-        if (jsonResponse == null) {
-            jsonResponse = "{}";
-        }
+        if (jsonResponse == null) {jsonResponse = "{}";}
 
         String cleanJson = jsonResponse.replace("```json", "").replace("```", "").trim();
         IssueDummyResponse dto = objectMapper.readValue(cleanJson, IssueDummyResponse.class);
 
-        Issue issue =
+        transactionTemplate.executeWithoutResult(status -> {
+            Issue issue =
                 Issue.builder()
-                        .projectId(projectId)
-                        .title(dto.title())
-                        .description(dto.description())
-                        .resolutionNote(dto.resolutionNote())
-                        .priority(issuePriority)
-                        .assignee(name)
-                        .issueType(issueType)
-                        .status(IssueStatus.RESOLVED)
-                        .build();
+                    .projectId(projectId)
+                    .title(dto.title())
+                    .description(dto.description())
+                    .resolutionNote(dto.resolutionNote())
+                    .priority(issuePriority)
+                    .assignee(name)
+                    .issueType(issueType)
+                    .status(IssueStatus.RESOLVED)
+                    .build();
 
-        issue.resolve(dto.resolutionNote());
+            issue.resolve(dto.resolutionNote());
 
-        Long savedId = issueRepository.save(issue).getId();
+            Long savedId = issueRepository.save(issue).getId();
 
-        String fullContent =
+            String fullContent =
                 String.format(
-                        """
-                [이슈 정보]
-                유형: %s
-                담당자: %s (%s %s)
-                우선순위: %s
-                제목: %s
-                내용: %s
-                해결: %s
-                """,
-                        issueType,
-                        name,
-                        dept,
-                        role,
-                        issuePriority,
-                        dto.title(),
-                        dto.description(),
-                        dto.resolutionNote());
+                    """
+            [이슈 정보]
+            유형: %s
+            담당자: %s (%s %s)
+            우선순위: %s
+            제목: %s
+            내용: %s
+            해결: %s
+            """,
+                    issueType,
+                    name,
+                    dept,
+                    role,
+                    issuePriority,
+                    dto.title(),
+                    dto.description(),
+                    dto.resolutionNote());
 
-        Map<String, Object> issueMetadata = new HashMap<>();
-        issueMetadata.put(MetadataKeys.CATEGORY, issueType.name());
-        issueMetadata.put(MetadataKeys.ISSUE_PRIORITY, issuePriority.name());
-        issueMetadata.put(MetadataKeys.AUTHOR_ID, name);
+            Map<String, Object> issueMetadata = new HashMap<>();
+            issueMetadata.put(MetadataKeys.CATEGORY, issueType.name());
+            issueMetadata.put(MetadataKeys.ISSUE_PRIORITY, issuePriority.name());
+            issueMetadata.put(MetadataKeys.AUTHOR_ID, name);
 
-        saveToVectorStore(savedId, SourceType.ISSUE, projectId, fullContent, issueMetadata);
+            saveToVectorStore(savedId, SourceType.ISSUE, projectId, fullContent, issueMetadata);
 
-        String contentForSummary = "이슈 제목: " + dto.title() + "\n해결 내용: " + dto.resolutionNote();
-        eventPublisher.publishEvent(
+            String contentForSummary = "이슈 제목: " + dto.title() + "\n해결 내용: " + dto.resolutionNote();
+            eventPublisher.publishEvent(
                 new SourceDataSavedEvent(savedId, SourceType.ISSUE, contentForSummary, projectId));
+        });
     }
 
     private void saveToVectorStore(

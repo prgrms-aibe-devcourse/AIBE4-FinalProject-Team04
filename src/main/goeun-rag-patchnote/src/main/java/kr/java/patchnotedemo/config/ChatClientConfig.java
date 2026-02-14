@@ -28,10 +28,10 @@ public class ChatClientConfig {
     private String geminiBaseUrl;
 
     @Value("${spring.ai.openai.chat.options.model:gemini-2.0-flash}")
-    private String openAIchatModelName;
+    private String openAIChatModelName;
 
     @Value("${spring.ai.ollama.chat.options.model:joonoh/HyperCLOVAX-SEED-Text-Instruct-1.5B}")
-    private String ollamachatModelName;
+    private String ollamaChatModelName;
 
     @Value("${spring.ai.ollama.embedding.options.model:mxbai-embed-large}")
     private String embeddingModelName;
@@ -61,7 +61,7 @@ public class ChatClientConfig {
     public ChatModel customOllamaChatModel() {
         OllamaApi ollamaApi = OllamaApi.builder().baseUrl(ollamaBaseUrl).build();
         OllamaChatOptions options =
-                OllamaChatOptions.builder().model(ollamachatModelName).temperature(0.0).build();
+                OllamaChatOptions.builder().model(ollamaChatModelName).temperature(0.0).build();
 
         return OllamaChatModel.builder().ollamaApi(ollamaApi).defaultOptions(options).build();
     }
