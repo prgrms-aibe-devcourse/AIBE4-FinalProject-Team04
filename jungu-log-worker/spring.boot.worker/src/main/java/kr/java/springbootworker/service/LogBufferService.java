@@ -1,5 +1,7 @@
 package kr.java.springbootworker.service;
 
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.annotation.PostConstruct;
 import kr.java.springbootworker.domain.entity.logs.Log;
 import kr.java.springbootworker.repository.LogJdbcRepository;
@@ -26,6 +28,8 @@ public class LogBufferService {
 
     private final LogJdbcRepository logJdbcRepository;
     private final RedisTemplate<String, String> redisTemplate;
+    private final BackpressureManager backpressureManager;
+    private final MeterRegistry meterRegistry;
     private final ConcurrentLinkedQueue<LogWrapper> buffer = new ConcurrentLinkedQueue<>();
     private final AtomicBoolean isFlushing = new AtomicBoolean(false);
 
@@ -47,6 +51,10 @@ public class LogBufferService {
             log.warn("Invalid batch size: {}. Resetting to 1000.", batchSize);
             batchSize = 1000;
         }
+
+        Gauge.builder("worker.buffer.size", buffer, ConcurrentLinkedQueue::size)
+                .description("인메모리 로그 버퍼 현재 크기")
+                .register(meterRegistry);
     }
 
     // API 요청용 (RecordId 없음)
@@ -91,19 +99,23 @@ public class LogBufferService {
             List<Log> logs = wrappersToSave.stream().map(LogWrapper::log).collect(Collectors.toList());
             
             try {
+                long start = System.currentTimeMillis();
                 logJdbcRepository.saveAll(logs);
-                
+                long latencyMs = System.currentTimeMillis() - start;
+                backpressureManager.recordLatency(latencyMs);
+
                 // RecordId가 있는 경우에만 ACK 전송
                 List<RecordId> recordIds = wrappersToSave.stream()
                         .map(LogWrapper::recordId)
                         .filter(id -> id != null)
                         .collect(Collectors.toList());
-                
+
                 if (!recordIds.isEmpty()) {
                     redisTemplate.opsForStream().acknowledge(streamKey, consumerGroup, recordIds.toArray(new RecordId[0]));
                 }
-                
-                log.info("Flushed {} logs to DB (ACK sent for {} items)", logs.size(), recordIds.size());
+
+                log.info("Flushed {} logs to DB in {}ms (state={}, ACK sent for {} items)",
+                        logs.size(), latencyMs, backpressureManager.getState(), recordIds.size());
             } catch (Exception e) {
                 log.error("Failed to flush logs to DB", e);
             }

@@ -15,6 +15,12 @@ services:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/logdb
       - SPRING_DATASOURCE_USERNAME=postgres
       - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
+      # 프로파일 설정 (dev: LogApiController 활성화, dev 설정 파일 적용)
+      - SPRING_PROFILES_ACTIVE=dev
+      # Micrometer → InfluxDB 메트릭 연동 (Grafana 시각화용)
+      - INFLUX_ENABLED=true
+      - INFLUX_URI=http://influxdb:8086
+      - INFLUX_DB=k6
     depends_on:
       - redis # Redis가 먼저 켜져야 API가 켜짐
       - postgres
