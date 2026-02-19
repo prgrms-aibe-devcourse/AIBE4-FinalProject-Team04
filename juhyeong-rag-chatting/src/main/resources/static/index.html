@@ -1,0 +1,224 @@
+﻿<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>파일 관리 시스템</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <div id="app">
+        <nav class="nav">
+            <h1 class="nav-title">파일 관리 시스템</h1>
+            <div class="nav-links">
+                <a href="#/" class="nav-link" data-page="list">파일 목록</a>
+                <a href="#/upload" class="nav-link" data-page="upload">새 파일 업로드</a>
+                <a href="#/chat" class="nav-link" data-page="chat">RAG 채팅</a>
+            </div>
+        </nav>
+
+        <main class="container">
+            <!-- 파일 목록 페이지 -->
+            <section id="page-list" class="page">
+                <div class="page-header">
+                    <h2>전체 파일 목록</h2>
+                    <button id="btn-refresh" class="btn btn-secondary">새로고침</button>
+                </div>
+                <div id="file-list-area">
+                    <table class="table">
+                        <colgroup>
+                            <col style="width:28%">
+                            <col style="width:12%">
+                            <col style="width:10%">
+                            <col style="width:8%">
+                            <col style="width:14%">
+                            <col style="width:10%">
+                            <col style="width:10%">
+                        </colgroup>
+                        <thead>
+                            <tr>
+                                <th>그룹명</th>
+                                <th>카테고리</th>
+                                <th>최신 버전</th>
+                                <th>파일 수</th>
+                                <th>최종 수정일시</th>
+                                <th>버전추가</th>
+                                <th>펼치기</th>
+                            </tr>
+                        </thead>
+                        <tbody id="file-table-body">
+                        </tbody>
+                    </table>
+                    <p id="empty-msg" class="empty-msg hidden">등록된 파일이 없습니다.</p>
+                    <div id="pagination" class="pagination hidden">
+                        <button id="btn-prev" class="btn btn-secondary btn-sm" disabled>이전</button>
+                        <span id="page-info" class="page-info"></span>
+                        <button id="btn-next" class="btn btn-secondary btn-sm" disabled>다음</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 업로드 안내 페이지 (모달 사용) -->
+            <section id="page-upload" class="page hidden">
+                <h2>파일 업로드</h2>
+                <p class="empty-msg">상단 버튼 또는 목록의 작업 버튼을 이용해 업로드/수정을 진행해 주세요.</p>
+            </section>
+
+            <!-- 파일 상세 페이지 -->
+            <section id="page-detail" class="page hidden">
+                <div class="page-header">
+                    <h2>파일 상세보기</h2>
+                    <button id="btn-detail-back" class="btn btn-secondary">목록으로</button>
+                </div>
+                <div class="detail-panel">
+                    <div class="detail-header">
+                        <div class="detail-title" id="detail-title">-</div>
+                        <div class="detail-sub" id="detail-sub">-</div>
+                    </div>
+                    <div class="detail-meta" id="detail-meta">
+                        <div class="detail-meta-item"><span>버전</span><strong id="detail-version">-</strong></div>
+                        <div class="detail-meta-item"><span>카테고리</span><strong id="detail-category">-</strong></div>
+                        <div class="detail-meta-item"><span>업로드</span><strong id="detail-uploaded">-</strong></div>
+                        <div class="detail-meta-item"><span>수정</span><strong id="detail-updated">-</strong></div>
+                    </div>
+                    <div class="detail-preview">
+                        <h3>미리보기</h3>
+                        <div id="detail-preview-body" class="preview-body">미리보기를 불러오는 중...</div>
+                    </div>
+                    <div class="detail-versions">
+                        <h3>버전 목록</h3>
+                        <div id="detail-versions-list" class="version-list"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- RAG 채팅 페이지 -->
+            <section id="page-chat" class="page hidden">
+                <div class="page-header">
+                    <h2>RAG 채팅</h2>
+                    <button id="btn-new-chat" class="btn btn-secondary">새 대화</button>
+                </div>
+                <div class="chat-container">
+                    <div class="chat-filter-bar">
+                        <div class="filter-group">
+                            <label for="searchScope">검색 범위</label>
+                            <select id="searchScope">
+                                <option value="ALL">전체 문서</option>
+                                <option value="CATEGORY">카테고리별</option>
+                                <option value="GROUP">특정 그룹</option>
+                            </select>
+                        </div>
+                        <div class="filter-group" id="filter-version-scope">
+                            <label for="versionScope">문서 범위</label>
+                            <select id="versionScope">
+                                <option value="ALL_VERSIONS">전체 문서</option>
+                                <option value="LATEST">최신 문서만</option>
+                            </select>
+                        </div>
+                        <div class="filter-group hidden" id="filter-category">
+                            <label for="filterCategory">카테고리 선택</label>
+                            <select id="filterCategory">
+                                <option value="">카테고리를 선택해 주세요.</option>
+                            </select>
+                        </div>
+                        <div class="filter-group hidden" id="filter-group">
+                            <label for="filterGroup">그룹 선택</label>
+                            <select id="filterGroup">
+                                <option value="">그룹을 선택해 주세요.</option>
+                            </select>
+                        </div>
+                        <div class="filter-group hidden" id="filter-versions">
+                            <label>파일 선택</label>
+                            <div id="versionRadios" class="version-checkboxes"></div>
+                        </div>
+                    </div>
+
+                    <details class="system-message-section">
+                        <summary class="system-message-toggle">시스템 메시지 설정</summary>
+                        <textarea id="userSystemMessage" class="system-message-input"
+                                  placeholder="더 명확하게 설명해줘, 영어로 답해줘, 간단히 요약해줘..."
+                                  rows="2"></textarea>
+                    </details>
+
+                    <div class="chat-messages" id="chatMessages">
+                        <div class="chat-welcome">
+                            <p class="welcome-title">문서 기반 질문을 해보세요</p>
+                            <p class="welcome-subtitle">업로드된 문서를 기반으로 답변합니다</p>
+                        </div>
+                    </div>
+
+                    <div class="chat-input-bar">
+                        <input type="text" id="chatInput" placeholder="질문을 입력해 주세요." autocomplete="off">
+                        <button id="chatSendBtn" class="btn btn-primary">전송</button>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+
+        <div id="toast" class="toast hidden"></div>
+    </div>
+
+        <div id="modal-overlay" class="modal-overlay hidden">
+            <div class="modal-card">
+                <div class="modal-title" id="modal-title">알림</div>
+                <div class="modal-body" id="modal-body"></div>
+                <div class="modal-actions">
+                    <button id="modal-cancel" class="btn btn-secondary btn-sm">취소</button>
+                    <button id="modal-alt" class="btn btn-secondary btn-sm hidden">마이너</button>
+                    <button id="modal-confirm" class="btn btn-primary btn-sm">확인</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="upload-modal" class="modal-overlay hidden">
+            <div class="modal-card">
+                <div class="modal-title-row">
+                    <div class="modal-title" id="upload-modal-title">새 파일 업로드</div>
+                    <span class="modal-badge" id="upload-modal-badge">NEW</span>
+                </div>
+                <div class="modal-subtitle" id="upload-modal-subtitle"></div>
+                <div class="modal-body">
+                    <form id="upload-modal-form" class="upload-form modal-form">
+                        <div class="form-group" id="modalGroupNameGroup">
+                            <label for="modalGroupName">그룹명</label>
+                            <input type="text" id="modalGroupName" placeholder="그룹명을 입력해 주세요." required>
+                        </div>
+                        <div class="form-group">
+                            <label for="modalFileCategory">카테고리</label>
+                            <select id="modalFileCategory" required>
+                                <option value="">선택해 주세요.</option>
+                                <option value="기획서">기획서</option>
+                                <option value="기타">기타</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>버전 (0.0.0)</label>
+                            <div class="version-grid">
+                                <input type="number" id="modalVersionMajor" min="0" step="1" inputmode="numeric" required>
+                                <span class="version-dot">.</span>
+                                <input type="number" id="modalVersionMinor" min="0" step="1" inputmode="numeric" required>
+                                <span class="version-dot">.</span>
+                                <input type="number" id="modalVersionPatch" min="0" step="1" inputmode="numeric" required>
+                            </div>
+                        </div>
+                        <div class="form-group" id="modalFileGroup">
+                            <label for="modalFile">파일 선택</label>
+                            <div class="file-drop-zone" id="modal-drop-zone">
+                                <input type="file" id="modalFile">
+                                <p class="drop-text">파일을 드래그하거나 클릭하여 선택해 주세요.</p>
+                                <p id="modal-selected-file-name" class="selected-file hidden"></p>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-actions">
+                    <button id="upload-modal-cancel" class="btn btn-secondary btn-sm">취소</button>
+                    <button id="upload-modal-confirm" class="btn btn-primary btn-sm">업로드</button>
+                </div>
+            </div>
+        </div>
+
+    <script src="/app.js"></script>
+</body>
+</html>
