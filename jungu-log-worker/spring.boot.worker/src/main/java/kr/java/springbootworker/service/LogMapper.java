@@ -6,12 +6,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import kr.java.springbootworker.domain.entity.logs.Log;
 import kr.java.springbootworker.dto.request.RawLogRequest;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.time.OffsetDateTime;
 import java.util.Map;
 import java.util.UUID;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class LogMapper {
@@ -20,7 +22,7 @@ public class LogMapper {
 
     public Log toEntity(Map<String, String> map) throws JsonProcessingException {
         if (map.get("projectId") == null || map.get("body") == null) {
-            throw new IllegalArgumentException("Missing required fields");
+            throw new IllegalArgumentException("Missing required fields: projectId and body are mandatory");
         }
 
         // logId 처리: null이거나 빈 문자열이면 새 UUID 생성
@@ -29,10 +31,17 @@ public class LogMapper {
                 ? UUID.fromString(logIdStr)
                 : UUID.randomUUID();
 
+        // sessionId 처리: NOT NULL 제약 때문에 null이면 기본값 제공
+        String sessionId = map.get("sessionId");
+        if (sessionId == null || sessionId.isEmpty()) {
+            sessionId = "unknown-session";
+            log.warn("sessionId is null or empty. Using default value: 'unknown-session'");
+        }
+
         return Log.builder()
                 .logId(logId)
                 .projectId(map.get("projectId"))
-                .sessionId(map.get("sessionId"))
+                .sessionId(sessionId)
                 .userId(map.get("userId"))
                 .severity(map.getOrDefault("severity", "INFO"))
                 .body(map.get("body"))
@@ -69,6 +78,8 @@ public class LogMapper {
         try {
             return OffsetDateTime.parse(timeStr);
         } catch (Exception e) {
+            log.warn("Failed to parse timestamp '{}'. Falling back to current time. Error: {}",
+                    timeStr, e.getMessage());
             return OffsetDateTime.now();
         }
     }

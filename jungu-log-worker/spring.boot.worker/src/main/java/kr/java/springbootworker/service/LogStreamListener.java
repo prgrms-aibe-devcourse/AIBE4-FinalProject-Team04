@@ -35,8 +35,10 @@ public class LogStreamListener implements StreamListener<String, MapRecord<Strin
             return;
         }
 
-        log.warn("[Backpressure] DB 지연 감지 (state={}, avg={:.1f}ms) - {}ms 대기",
-                backpressureManager.getState(), backpressureManager.getAvgLatencyMs(), sleepMs);
+        log.warn("[Backpressure] DB 지연 감지 (state={}, avg={} ms) - {} ms 대기",
+                backpressureManager.getState(),
+                String.format("%.1f", backpressureManager.getAvgLatencyMs()),
+                sleepMs);
 
         try {
             Thread.sleep(sleepMs);
