@@ -2,7 +2,6 @@ package kr.java.patchnotedemo.event;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.nio.charset.StandardCharsets;
 import kr.java.patchnotedemo.dto.DocumentSummaryResponse;
 import kr.java.patchnotedemo.dto.IssueSummaryResponse;
 import kr.java.patchnotedemo.entity.Issue;
@@ -12,6 +11,7 @@ import kr.java.patchnotedemo.enums.PatchType;
 import kr.java.patchnotedemo.enums.SourceType;
 import kr.java.patchnotedemo.repository.IssueRepository;
 import kr.java.patchnotedemo.repository.PendingItemRepository;
+import kr.java.patchnotedemo.util.PromptUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
@@ -22,7 +22,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionalEventListener;
-import org.springframework.util.StreamUtils;
 
 @Slf4j
 @Component
@@ -89,19 +88,12 @@ public class SourceDataSavedEventListener {
         savePendingItem(event, dto.title(), dto.summary(), dto.category());
     }
 
-    private String loadPromptTemplate(Resource resource) {
-        try {
-            return StreamUtils.copyToString(resource.getInputStream(), StandardCharsets.UTF_8);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to load prompt template: " + resource.getDescription(), e);
-        }
-    }
-
     private <T> T extractMetadata(Resource promptResource, String content, Class<T> responseType)
             throws JsonProcessingException {
-        String template = loadPromptTemplate(promptResource);
+        String template = PromptUtils.loadPrompt(promptResource);
         if (template == null || template.isBlank()) {
-            throw new IllegalStateException("Prompt template is empty: " + promptResource.getDescription());
+            throw new IllegalStateException(
+                    "Prompt template is empty: " + promptResource.getDescription());
         }
 
         String promptText = template.replace("{content}", content);

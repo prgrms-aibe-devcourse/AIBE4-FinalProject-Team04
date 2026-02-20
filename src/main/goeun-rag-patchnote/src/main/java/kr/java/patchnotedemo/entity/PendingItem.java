@@ -33,10 +33,10 @@ public class PendingItem {
 
     private Long sourceId;
 
-    private String title; // LLM이 요약한 제목
+    private String title;
 
     @Column(columnDefinition = "TEXT")
-    private String summary; // LLM이 요약한 내용
+    private String summary;
 
     @Enumerated(EnumType.STRING)
     private PatchType patchType;

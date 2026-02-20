@@ -12,9 +12,9 @@ public interface PendingItemRepository extends JpaRepository<PendingItem, Long> 
 
     List<PendingItem> findByProjectIdAndStatus(String projectId, PendingItemStatus status);
 
-    List<PendingItem> findByProjectIdAndStatusNot(String projectId, PendingItemStatus status);
-
     Optional<PendingItem> findByIdAndProjectId(Long id, String projectId);
+
+    List<PendingItem> findByIdInAndProjectId(List<Long> ids, String projectId);
 
     // 초성 검색 (pg_trgm 활용)
     @Query(
