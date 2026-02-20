@@ -24,6 +24,12 @@ services:
     depends_on:
       - redis # Redis가 먼저 켜져야 API가 켜짐
       - postgres
+    # EC2 t3.small 스펙 기준 (2 vCPU, 2 GB RAM)
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2g
 
   # 2. Redis (공식 이미지 사용)
   redis:
@@ -37,6 +43,12 @@ services:
     volumes:
       # 볼륨 마운트: (내 EC2 폴더) : (컨테이너 내부 폴더)
       - ./redis-data:/data
+    # ElastiCache cache.t3.small 스펙 기준 (2 vCPU, 1.37 GB RAM)
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1400m
 
   # 3. InfluxDB (k6 결과 저장)
   influxdb:
@@ -89,3 +101,9 @@ services:
       - POSTGRES_DB=logdb
     volumes:
       - ./postgres-data:/var/lib/postgresql/data
+    # RDS db.t3.small 스펙 기준 (2 vCPU, 2 GB RAM)
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2g

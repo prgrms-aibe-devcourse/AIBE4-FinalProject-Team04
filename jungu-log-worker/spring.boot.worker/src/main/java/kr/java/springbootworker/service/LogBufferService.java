@@ -23,7 +23,6 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
 public class LogBufferService {
 
     private final LogJdbcRepository logJdbcRepository;
@@ -31,13 +30,18 @@ public class LogBufferService {
     private final BackpressureManager backpressureManager;
     private final MeterRegistry meterRegistry;
     private final ConcurrentLinkedQueue<LogWrapper> buffer = new ConcurrentLinkedQueue<>();
+    private final ConcurrentLinkedQueue<LogWrapper> deadLetterQueue = new ConcurrentLinkedQueue<>();
     private final AtomicBoolean isFlushing = new AtomicBoolean(false);
+    private final AtomicBoolean isRetrying = new AtomicBoolean(false);
 
     @Value("${worker.bulk.size:1000}")
     private int batchSize;
 
     @Value("${worker.buffer.max-size:10000}")
     private int maxBufferSize;
+
+    @Value("${worker.dlq.max-retry:3}")
+    private int maxRetryCount;
 
     @Value("${redis.stream.key:log-stream}")
     private String streamKey;
@@ -54,6 +58,10 @@ public class LogBufferService {
 
         Gauge.builder("worker.buffer.size", buffer, ConcurrentLinkedQueue::size)
                 .description("인메모리 로그 버퍼 현재 크기")
+                .register(meterRegistry);
+
+        Gauge.builder("worker.dlq.size", deadLetterQueue, ConcurrentLinkedQueue::size)
+                .description("Dead Letter Queue 현재 크기")
                 .register(meterRegistry);
     }
 
@@ -117,12 +125,89 @@ public class LogBufferService {
                 log.info("Flushed {} logs to DB in {}ms (state={}, ACK sent for {} items)",
                         logs.size(), latencyMs, backpressureManager.getState(), recordIds.size());
             } catch (Exception e) {
-                log.error("Failed to flush logs to DB", e);
+                log.error("Failed to flush {} logs to DB. Moving to DLQ for retry.", logs.size(), e);
+                // 실패한 로그들을 Dead Letter Queue에 추가
+                wrappersToSave.forEach(w -> {
+                    LogWrapper retryWrapper = new LogWrapper(w.log(), w.recordId(), w.retryCount());
+                    deadLetterQueue.offer(retryWrapper);
+                });
             }
         } finally {
             isFlushing.set(false);
         }
     }
 
-    public record LogWrapper(Log log, RecordId recordId) {}
+    @Scheduled(fixedDelayString = "${worker.dlq.retry-interval-ms:5000}")
+    @Transactional
+    public void retryDeadLetterQueue() {
+        if (!isRetrying.compareAndSet(false, true)) {
+            return;
+        }
+
+        try {
+            if (deadLetterQueue.isEmpty()) {
+                return;
+            }
+
+            List<LogWrapper> wrappersToRetry = new ArrayList<>();
+            LogWrapper wrapper;
+            while (wrappersToRetry.size() < batchSize && (wrapper = deadLetterQueue.poll()) != null) {
+                wrappersToRetry.add(wrapper);
+            }
+
+            if (wrappersToRetry.isEmpty()) {
+                return;
+            }
+
+            List<Log> logs = wrappersToRetry.stream().map(LogWrapper::log).collect(Collectors.toList());
+
+            try {
+                long start = System.currentTimeMillis();
+                logJdbcRepository.saveAll(logs);
+                long latencyMs = System.currentTimeMillis() - start;
+
+                // RecordId가 있는 경우에만 ACK 전송
+                List<RecordId> recordIds = wrappersToRetry.stream()
+                        .map(LogWrapper::recordId)
+                        .filter(id -> id != null)
+                        .collect(Collectors.toList());
+
+                if (!recordIds.isEmpty()) {
+                    redisTemplate.opsForStream().acknowledge(streamKey, consumerGroup, recordIds.toArray(new RecordId[0]));
+                }
+
+                log.info("[DLQ] Successfully retried {} logs to DB in {}ms (ACK sent for {} items)",
+                        logs.size(), latencyMs, recordIds.size());
+            } catch (Exception e) {
+                log.error("[DLQ] Failed to retry {} logs to DB", logs.size(), e);
+
+                // 재시도 횟수 증가 및 DLQ 재추가 또는 최종 실패 처리
+                wrappersToRetry.forEach(w -> {
+                    int newRetryCount = w.retryCount() + 1;
+                    if (newRetryCount < maxRetryCount) {
+                        LogWrapper retryWrapper = new LogWrapper(w.log(), w.recordId(), newRetryCount);
+                        deadLetterQueue.offer(retryWrapper);
+                        log.warn("[DLQ] Retry count: {}/{} for log ID: {}", newRetryCount, maxRetryCount, w.recordId());
+                    } else {
+                        handleFinalFailure(w);
+                    }
+                });
+            }
+        } finally {
+            isRetrying.set(false);
+        }
+    }
+
+    private void handleFinalFailure(LogWrapper wrapper) {
+        log.error("[DLQ] Final failure after {} retries. RecordId: {}, Log: {}",
+                maxRetryCount, wrapper.recordId(), wrapper.log());
+        // TODO: 파일에 기록하거나 별도 알림 시스템 연동
+    }
+
+    public record LogWrapper(Log log, RecordId recordId, int retryCount) {
+        // retryCount를 포함하지 않는 생성자 (기존 호환성 유지)
+        public LogWrapper(Log log, RecordId recordId) {
+            this(log, recordId, 0);
+        }
+    }
 }
