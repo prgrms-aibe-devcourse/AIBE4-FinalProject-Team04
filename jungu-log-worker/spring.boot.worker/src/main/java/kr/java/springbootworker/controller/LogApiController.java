@@ -2,10 +2,11 @@ package kr.java.springbootworker.controller;
 
 import jakarta.validation.Valid;
 import kr.java.springbootworker.dto.request.RawLogRequest;
+import kr.java.springbootworker.dto.response.LogBulkInsertResponse;
 import kr.java.springbootworker.service.LogBufferService;
-import kr.java.springbootworker.service.LogMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Profile;
+import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -22,14 +23,12 @@ import java.util.List;
 public class LogApiController {
 
     private final LogBufferService logBufferService;
-    private final LogMapper logMapper;
 
-    @PostMapping("/bulk")
-    public String bulkInsert(@RequestBody List<@Valid RawLogRequest> logDtos) {
-        logDtos.forEach(dto -> {
-            logBufferService.add(logMapper.toEntity(dto));
-        });
-        
-        return "Accepted " + logDtos.size() + " logs.";
+    @PostMapping
+    public ResponseEntity<LogBulkInsertResponse> createLogs(@RequestBody List<@Valid RawLogRequest> logDtos) {
+        logBufferService.addAllFromDtos(logDtos);
+
+        return ResponseEntity.accepted()
+                .body(LogBulkInsertResponse.of(logDtos.size()));
     }
 }

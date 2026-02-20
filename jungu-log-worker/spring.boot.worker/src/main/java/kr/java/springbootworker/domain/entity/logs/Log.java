@@ -18,7 +18,7 @@ import java.util.Map;
 import java.util.UUID;
 
 @Entity(name = "log")
-@Table(name = "log", indexes = @Index(name = "idx_occurred_at", columnList = "occurredAt"))
+@Table(name = "log", indexes = @Index(name = "idx_occurred_at", columnList = "occurred_at"))
 @Getter
 @Builder
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
