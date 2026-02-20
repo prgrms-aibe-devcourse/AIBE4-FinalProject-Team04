@@ -23,8 +23,14 @@ public class LogMapper {
             throw new IllegalArgumentException("Missing required fields");
         }
 
+        // logId 처리: null이거나 빈 문자열이면 새 UUID 생성
+        String logIdStr = map.get("logId");
+        UUID logId = (logIdStr != null && !logIdStr.isEmpty())
+                ? UUID.fromString(logIdStr)
+                : UUID.randomUUID();
+
         return Log.builder()
-                .logId(UUID.fromString(map.getOrDefault("logId", UUID.randomUUID().toString())))
+                .logId(logId)
                 .projectId(map.get("projectId"))
                 .sessionId(map.get("sessionId"))
                 .userId(map.get("userId"))
