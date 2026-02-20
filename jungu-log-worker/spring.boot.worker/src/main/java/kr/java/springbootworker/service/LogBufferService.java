@@ -4,6 +4,7 @@ import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.annotation.PostConstruct;
 import kr.java.springbootworker.domain.entity.logs.Log;
+import kr.java.springbootworker.dto.request.RawLogRequest;
 import kr.java.springbootworker.repository.LogJdbcRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,6 +30,7 @@ public class LogBufferService {
     private final RedisTemplate<String, String> redisTemplate;
     private final BackpressureManager backpressureManager;
     private final MeterRegistry meterRegistry;
+    private final LogMapper logMapper;
     private final ConcurrentLinkedQueue<LogWrapper> buffer = new ConcurrentLinkedQueue<>();
     private final ConcurrentLinkedQueue<LogWrapper> deadLetterQueue = new ConcurrentLinkedQueue<>();
     private final AtomicBoolean isFlushing = new AtomicBoolean(false);
@@ -73,13 +75,24 @@ public class LogBufferService {
     public void add(Log logEntity, RecordId recordId) {
         if (buffer.size() >= maxBufferSize) {
             log.warn("Buffer is full (size: {}). Dropping log.", buffer.size());
-            return; 
+            return;
         }
-        
+
         buffer.offer(new LogWrapper(logEntity, recordId));
         if (buffer.size() >= batchSize) {
             flush();
         }
+    }
+
+    // API 요청용 - DTO를 받아서 변환 (Service Layer에서 변환 처리)
+    public void addFromDto(RawLogRequest dto) {
+        Log logEntity = logMapper.toEntity(dto);
+        add(logEntity);
+    }
+
+    // 일괄 처리용
+    public void addAllFromDtos(List<RawLogRequest> dtos) {
+        dtos.forEach(this::addFromDto);
     }
 
     @Scheduled(fixedDelayString = "${worker.bulk.flush-interval-ms:1000}")

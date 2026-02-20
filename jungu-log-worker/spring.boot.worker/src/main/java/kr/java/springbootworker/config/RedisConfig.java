@@ -33,32 +33,51 @@ public class RedisConfig {
     private final LogStreamListener logStreamListener;
 
     @Bean
-    public Subscription subscription(RedisConnectionFactory factory) {
+    public StreamMessageListenerContainer<String, MapRecord<String, String, String>> streamMessageListenerContainer(
+            RedisConnectionFactory factory) {
+
+        // Consumer Group 생성 (Connection을 안전하게 닫음)
+        createConsumerGroupIfNotExists(factory);
+
+        // ListenerContainer 옵션 설정
         StreamMessageListenerContainer.StreamMessageListenerContainerOptions<String, MapRecord<String, String, String>> options =
                 StreamMessageListenerContainer.StreamMessageListenerContainerOptions
                         .builder()
                         .pollTimeout(Duration.ofSeconds(1))
                         .build();
 
-        StreamMessageListenerContainer<String, MapRecord<String, String, String>> listenerContainer =
+        // ListenerContainer 생성 및 Subscription 등록
+        StreamMessageListenerContainer<String, MapRecord<String, String, String>> container =
                 StreamMessageListenerContainer.create(factory, options);
 
-        try {
-            factory.getConnection().streamCommands().xGroupCreate(streamKey.getBytes(), consumerGroup, ReadOffset.from("0-0"), true);
-        } catch (Exception e) {
-            // "already exists" 에러는 정상적인 상황이므로 무시. 그 외의 에러는 로깅.
-            if (e.getMessage() != null && !e.getMessage().contains("BUSYGROUP")) {
-                log.error("Failed to create Redis Stream consumer group", e);
-            }
-        }
-
-        Subscription subscription = listenerContainer.receive(
+        container.receive(
                 Consumer.from(consumerGroup, consumerName),
                 StreamOffset.create(streamKey, ReadOffset.lastConsumed()),
                 logStreamListener
         );
 
-        listenerContainer.start();
-        return subscription;
+        // Spring lifecycle 관리 시작
+        container.start();
+        return container;
+    }
+
+    private void createConsumerGroupIfNotExists(RedisConnectionFactory factory) {
+        // try-with-resources로 Connection을 안전하게 닫음
+        try (var connection = factory.getConnection()) {
+            connection.streamCommands().xGroupCreate(
+                    streamKey.getBytes(),
+                    consumerGroup,
+                    ReadOffset.from("0-0"),
+                    true
+            );
+            log.info("Redis Stream consumer group created: {}", consumerGroup);
+        } catch (Exception e) {
+            // "already exists" 에러는 정상적인 상황이므로 무시
+            if (e.getMessage() != null && e.getMessage().contains("BUSYGROUP")) {
+                log.debug("Consumer group already exists: {}", consumerGroup);
+            } else {
+                log.error("Failed to create Redis Stream consumer group", e);
+            }
+        }
     }
 }
